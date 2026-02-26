@@ -11,3 +11,21 @@ Postgres: localhost:5432<br>
 ## Prereqs
 - Node.js, git, docker desktop
 
+## Connect to local repo
+Asumming you have already ran "git init"<br>
+- git remote add origin https://github.com/jeannamatthews classes/group-project-emr-pa.git<br>
+
+- git checkout main
+- npm install
+
+### To make sure everything is running
+- npm run db:up (start db)
+- npm run db:down (stop db)
+    - There are other command check package.json in root (scripts)
+
+- create a .env file in apps/backend and copy code in .env.example
+    - .env file should never be pushed to github, always push example template
+- go back to root (emr-pa)
+- run "npm run dev:backend" to start up backend
+- run "npm run dev:frontend" to start up frontend
+
