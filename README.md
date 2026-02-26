@@ -23,8 +23,8 @@ Asumming you have already ran "git init"<br>
 - npm run db:down (stop db)
     - There are other command check package.json in root (scripts)
 
-- create a .env file in apps/backend and copy code in .env.example
-    - .env file should never be pushed to github, always push example template
+- create a .env file in apps/backend and copy code in .env.template
+    - .env file should never be pushed to github, always push template 
 - go back to root (emr-pa)
 - run "npm run dev:backend" to start up backend
 - run "npm run dev:frontend" to start up frontend
