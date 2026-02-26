@@ -2,7 +2,9 @@
 
 
 
-#EMR-PA Project Setup
+# EMR-PA Project Setup
 
 ## Prereqs
 - Node.js, git, docker desktop
+
+1
