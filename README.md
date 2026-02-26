@@ -18,7 +18,7 @@ Asumming you have already ran "git init"<br>
 - git checkout main
 - npm install
 
-### To make sure everything is running
+### To make sure everything is Good
 - npm run db:up (start db)
 - npm run db:down (stop db)
     - There are other command check package.json in root (scripts)
