@@ -3,6 +3,10 @@
 
 
 # EMR-PA Project Setup
+How to get started
+Frontend: http://localhost:5173
+Backend:  http://localhost:5000
+Postgres: localhost:5432
 
 ## Prereqs
 - Node.js, git, docker desktop
