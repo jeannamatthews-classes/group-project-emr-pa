@@ -46,6 +46,7 @@ Asumming you have already ran "git init"<br>
 }<br>
 - run "npm run prisma:migrate or npx prisma migrate dev --name any-comment-you-want"
 - run "npm run prisma:studio" again 
+- you should see table a table below "prisma_migration" in which you can add new entries etc.
 - check migrations folder, should see some sql code and a migration toml file, commit the folder
 - Learn some prisma, or how to write raw sql using prisma (writing raw sql is typically not recommended but can be useful).
 
