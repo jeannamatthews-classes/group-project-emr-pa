@@ -14,7 +14,7 @@ Postgres: localhost:5432<br>
 ## Connect to local repo
 Asumming you have already ran "git init"<br>
 - git remote add origin https://github.com/jeannamatthews classes/group-project-emr-pa.git<br>
-
+- git pull
 - git checkout main
 - npm install
 
