@@ -37,15 +37,16 @@ Asumming you have already ran "git init"<br>
 
 ### Optional (create a table, migrate and add some info) only for Database team
 - First make sure prisma is installed in vscode extensions
-- Open schema.prisma in prisma file
-- create a table eg model firstTable {<br>
+- Open schema.prisma in prisma folder
+- create a table eg<br> 
+model firstTable {<br>
   id    Int    @id @default(autoincrement())<br>
   email String @unique<br>
   name  String?<br>
 }<br>
 - run "npm run prisma:migrate or npx prisma migrate dev --name any-comment-you-want"
 - run "npm run prisma:studio" again 
-- you should see table a table below "prisma_migration" in which you can add new entries etc.
+- you should see a table below "_prisma_migration" in which you can add new entries etc.
 - check migrations folder, should see some sql code and a migration toml file, commit the folder
 - Learn some prisma, or how to write raw sql using prisma (writing raw sql is typically not recommended but can be useful).
 
