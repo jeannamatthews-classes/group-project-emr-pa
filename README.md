@@ -3,7 +3,6 @@
 
 
 # EMR-PA Project Setup
-How to get started<br>
 Frontend: http://localhost:5173<br>
 Backend:  http://localhost:5000<br>
 Postgres: localhost:5432<br>
