@@ -19,7 +19,7 @@ Asumming you have already ran "git init"<br>
 - npm install
 
 ### To make sure everything is Good
-- npm run db:up (start db, docker needs to be opened for this to be running)
+- npm run db:up (start db, docker needs to be opened for this to work)
 - npm run db:down (stop db)
     - There are other command check package.json in root (scripts)
 
