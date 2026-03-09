@@ -1,0 +1,43 @@
+/* Button - Professional blue color palette */
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  color: #ffffff;
+  background-color: #2563eb;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btn--secondary {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background-color: #dbeafe;
+}
+
+.btn--full-width {
+  width: 100%;
+}
