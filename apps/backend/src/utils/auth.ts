@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 const JWT_EXPIRY = '24h';
 
 /**
- * Hash a plain text password
+ * Hash the plain text password
  */
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcryptjs.genSalt(10);
@@ -23,14 +23,14 @@ export const comparePassword = async (
 };
 
 /**
- * Generate a JWT token
+ * Generate the JWT token
  */
 export const generateToken = (userId: string): string => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 };
 
 /**
- * Verify and decode a JWT token
+ * Verify and decode the JWT token
  */
 export const verifyToken = (token: string): { userId: string } | null => {
   try {

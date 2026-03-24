@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/auth';
 
-// Extend Express Request type to include userId
+// Express request type extension to unclude userId
 declare global {
   namespace Express {
     interface Request {
@@ -11,7 +11,7 @@ declare global {
 }
 
 /**
- * Middleware to verify JWT token and protect routes
+ * Verify JWT token and protect routes
  */
 export const authMiddleware = (
   req: Request,
@@ -26,7 +26,7 @@ export const authMiddleware = (
       return;
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7); // Remove the prefix
     const decoded = verifyToken(token);
 
     if (!decoded) {
