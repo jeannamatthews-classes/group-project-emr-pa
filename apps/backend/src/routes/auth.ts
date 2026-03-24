@@ -6,8 +6,7 @@ import { authMiddleware } from '../middleware/auth';
 const router = express.Router();
 
 /**
- * POST /api/auth/register
- * Register a new user
+ * Code to register a new user
  */
 router.post('/register', async (req: Request, res: Response) => {
   try {
@@ -70,8 +69,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/auth/login
- * Login an existing user
+ * Code to login an existing user
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
@@ -120,8 +118,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/auth/me
- * Get current user profile (protected route)
+ * Current user profile (protected route)
  */
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   try {
