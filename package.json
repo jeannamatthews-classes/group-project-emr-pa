@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "dev:frontend":"npm run dev -w apps/frontend",
+    "dev:frontend": "npm run dev -w apps/frontend",
     "dev:backend": "npm run dev -w apps/backend",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
@@ -26,7 +26,12 @@
   },
   "homepage": "https://github.com/jeannamatthews-classes/group-project-emr-pa#readme",
   "private": true,
-  "workspaces":["apps/*"]
+  "workspaces": [
+    "apps/*"
+  ],
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.9"
+  }
 }
-
-
