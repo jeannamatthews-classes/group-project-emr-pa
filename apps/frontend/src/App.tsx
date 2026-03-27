@@ -1,34 +1,57 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const students = ["Student A", "Student B", "Student C"]
+
+  const cases = [
+    { name: "Gregory House" },
+    { name: "Case #2" }
+  ]
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div style={{ padding: "20px", fontFamily: "Arial" }}>
+      
+      {/* Navbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+        <h2>EMR-PA</h2>
+        <h3>Home</h3>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+
+      {/* Welcome */}
+      <h1>Welcome, Faculty Member!</h1>
+
+      {/* Students Section */}
+      <div style={{ marginTop: "30px" }}>
+        <h2>Students</h2>
+        {students.map((student, index) => (
+          <div key={index} style={{ marginBottom: "10px" }}>
+            {student}
+            <button style={{ marginLeft: "10px" }}>
+              Open Student View
+            </button>
+          </div>
+        ))}
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+
+      {/* Cases Section */}
+      <div style={{ marginTop: "30px" }}>
+        <h2>Cases</h2>
+        <button style={{ marginBottom: "10px" }}>+ Create New</button>
+
+        {cases.map((c, index) => (
+          <div key={index} style={{ marginBottom: "10px" }}>
+            <strong>{c.name}</strong>
+            <div>
+              <button>View Case</button>
+              <button>Edit Case</button>
+              <button>Assign Case</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
   )
 }
 
