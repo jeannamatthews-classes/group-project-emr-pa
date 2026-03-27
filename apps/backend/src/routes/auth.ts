@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 import { authMiddleware } from '../middleware/auth';
 
+//renamed branch
 const router = express.Router();
 
 /**
