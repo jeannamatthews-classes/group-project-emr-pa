@@ -11,7 +11,13 @@ const router = express.Router();
  */
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { username, email, password, confirmPassword } = req.body;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { username, email, password, confirmPassword } = body as {
+      username?: string;
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+    };
 
     // Validation
     if (!username || !email || !password || !confirmPassword) {
@@ -65,7 +71,11 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+    const details = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
+      error: 'Failed to register user',
+      ...(process.env.NODE_ENV !== 'production' ? { details } : {}),
+    });
   }
 });
 
@@ -74,7 +84,11 @@ router.post('/register', async (req: Request, res: Response) => {
  */
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { email, password } = body as {
+      email?: string;
+      password?: string;
+    };
 
     // Validation
     if (!email || !password) {
@@ -114,7 +128,11 @@ router.post('/login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+    const details = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
+      error: 'Failed to login',
+      ...(process.env.NODE_ENV !== 'production' ? { details } : {}),
+    });
   }
 });
 
