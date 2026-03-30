@@ -1,58 +1,62 @@
-import { useState } from 'react'
-import './App.css'
+import { useState } from "react";
 
-function App() {
-  const students = ["Student A", "Student B", "Student C"]
+import {
+  Box,
+  Button,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  TextField,
+  Typography,
+} from "@mui/material";
 
-  const cases = [
-    { name: "Gregory House" },
-    { name: "Case #2" }
-  ]
+const panelStyle = {
+  bgcolor: "#ffffff",
+  borderRadius: 3,
+  p: 2.5,
+  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
+  height: "70vh",
+  display: "flex",
+  flexDirection: "column"
+};
 
+export default function FacultyDashboard() {
   return (
-    <div className="container">
+    <Box
+      sx={{
+        bgcolor: "#f4f7fb",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box sx={{ px: 4, pt: 4 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
+          Faculty Dashboard
+        </Typography>
+      </Box>
 
-      {/*Navigation*/}
-      <div className="navbar" style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-        <h2 className="logo">EMR-PA</h2>
-        <h2 className="nav-link">Home</h2>
-      </div>
-
-      {/*Welcome*/}
-      <h1 className="welcome">Welcome, Faculty Member!</h1>
-
-      {/*Students*/}
-      <div className="card">
-        <h2>Students</h2>
-        {students.map((student, index) => (
-          <div key={index} className="row">
-            <span>{student}</span>
-            <button className="primary-btn">Open</button>
-          </div>
-        ))}
-      </div>
-
-      {/*Cases*/}
-      <div className="card">
-        <div className="card-healer">
-          <h2>Cases</h2>
-          <button className="primary-btn"></button>
-        </div>
-
-        {cases.map((c, index) => (
-          <div key={index} className="case-item">
-            <strong>{c.name}</strong>
-            <div>
-              <button className="secondary-btn">View</button>
-              <button className="secondary-btn">Edit</button>
-              <button className="secondary-btn">Assign</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-    </div>
-  )
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 3,
+          flex: 1,
+          px: 4,
+          pb: 4,
+          width: "100%",
+        }}
+      >
+        <Box sx={panelStyle}>
+        {
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+            Students
+          </Typography>
+        }
+        </Box>
+        <Box sx={panelStyle}>{/* Cases */}</Box>
+      </Box>
+    </Box>
+  );
 }
-
-export default App
