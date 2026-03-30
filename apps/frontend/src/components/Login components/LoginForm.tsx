@@ -11,7 +11,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
 
   const { loading, error, handleLogin, clearError } = useLogin({
-    redirectTo: "/student",
+    redirectTo: "/portal",
   });
 
   const onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]> = async (event) => {
