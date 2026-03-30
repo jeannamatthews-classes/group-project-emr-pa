@@ -1,14 +1,14 @@
-import React, { useState } from "react"
+import { useState } from "react";
 
 import {
-    Drawer,
-    List,
-    ListItem,
-    ListItemText,
-    TextField,
-    Button,
-    Box,
-    Typography
+  Box,
+  Button,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  TextField,
+  Typography,
 } from "@mui/material";
 
 type Case = {
@@ -23,98 +23,120 @@ const mockCases: Case[] = [
 ];
 
 export default function Student() {
-    const [selectedCase, setSelectedCase] = useState<Case | null>(null);
-    const [search, setSearch] = useState("");
-    const [hpi, setHpi] = useState("");
-    const [exam, setExam] = useState("");
-  
-    const filteredCases = mockCases.filter((c) =>
-      c.name.toLowerCase().includes(search.toLowerCase())
-    );
-  
-    const handleSave = () => {
-      const payload = {
-        caseId: selectedCase?.id,
-        hpi,
-        exam,
-      };
-  
-      console.log("Saving Notes:", payload);
-      // TODO: send to backend API
+  const [selectedCase, setSelectedCase] = useState<Case | null>(mockCases[0]);
+  const [search, setSearch] = useState("");
+  const [hpi, setHpi] = useState("");
+  const [exam, setExam] = useState("");
+
+  const filteredCases = mockCases.filter((currentCase) =>
+    currentCase.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSave = () => {
+    const payload = {
+      caseId: selectedCase?.id,
+      hpi,
+      exam,
     };
-  
-    const handleSubmit = () => {
-      console.log("Submitting assignment...");
-      // TODO: API call
-    };
-  
-    return (
-      <Box display="flex">
-        {/* Sidebar */}
-        <Drawer variant="permanent" anchor="left">
-          <Box p={2} width={250}>
-            <TextField
-              fullWidth
-              label="Search Cases"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-  
-            <List>
-              {filteredCases.map((c) => (
-                <ListItem button key={c.id} onClick={() => setSelectedCase(c)}>
-                  <ListItemText primary={c.name} secondary={c.patient} />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        </Drawer>
-  
-        {/* Main Content */}
-        <Box flex={1} p={3}>
-          {!selectedCase ? (
-            <Typography>Select a case to begin</Typography>
-          ) : (
-            <>
-              <Typography variant="h5">{selectedCase.name}</Typography>
-              <Typography variant="subtitle1">
-                Patient: {selectedCase.patient}
-              </Typography>
-  
-              <Box mt={3}>
-                <TextField
-                  label="HPI"
-                  multiline
-                  rows={4}
-                  fullWidth
-                  value={hpi}
-                  onChange={(e) => setHpi(e.target.value)}
+
+    console.log("Saving Notes:", payload);
+  };
+
+  const handleSubmit = () => {
+    console.log("Submitting assignment...");
+  };
+
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f4f7fb" }}>
+      <Drawer
+        variant="permanent"
+        anchor="left"
+        PaperProps={{
+          sx: {
+            width: 280,
+            boxSizing: "border-box",
+            borderRight: "1px solid #dbe4f0",
+            bgcolor: "#ffffff",
+          },
+        }}
+      >
+        <Box sx={{ p: 2.5 }}>
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+            Student Cases
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="Search Cases"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            size="small"
+          />
+
+          <List sx={{ mt: 2 }}>
+            {filteredCases.map((currentCase) => (
+              <ListItemButton
+                key={currentCase.id}
+                selected={selectedCase?.id === currentCase.id}
+                onClick={() => setSelectedCase(currentCase)}
+                sx={{ borderRadius: 1.5, mb: 0.5 }}
+              >
+                <ListItemText
+                  primary={currentCase.name}
+                  secondary={currentCase.patient}
                 />
-              </Box>
-  
-              <Box mt={2}>
-                <TextField
-                  label="Physical Exam"
-                  multiline
-                  rows={4}
-                  fullWidth
-                  value={exam}
-                  onChange={(e) => setExam(e.target.value)}
-                />
-              </Box>
-  
-              <Box mt={3} display="flex" gap={2}>
-                <Button variant="contained" onClick={handleSave}>
-                  Save Notes
-                </Button>
-  
-                <Button variant="outlined" onClick={handleSubmit}>
-                  Submit Assignment
-                </Button>
-              </Box>
-            </>
-          )}
+              </ListItemButton>
+            ))}
+          </List>
         </Box>
+      </Drawer>
+
+      <Box sx={{ flex: 1, ml: "280px", p: 4 }}>
+        {!selectedCase ? (
+          <Typography>Select a case to begin.</Typography>
+        ) : (
+          <Box sx={{ maxWidth: 900 }}>
+            <Typography variant="h4" fontWeight={700}>
+              {selectedCase.name}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+              Patient: {selectedCase.patient}
+            </Typography>
+
+            <Box sx={{ mt: 3 }}>
+              <TextField
+                label="HPI"
+                multiline
+                rows={6}
+                fullWidth
+                value={hpi}
+                onChange={(event) => setHpi(event.target.value)}
+              />
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Physical Exam"
+                multiline
+                rows={6}
+                fullWidth
+                value={exam}
+                onChange={(event) => setExam(event.target.value)}
+              />
+            </Box>
+
+            <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
+              <Button variant="contained" onClick={handleSave}>
+                Save Notes
+              </Button>
+
+              <Button variant="outlined" onClick={handleSubmit}>
+                Submit Assignment
+              </Button>
+            </Box>
+          </Box>
+        )}
       </Box>
-    );
-  }
+    </Box>
+  );
+}
