@@ -32,6 +32,7 @@ Asumming you have already ran "git init"<br>
 ## Start up prisma
 - Make sure you have ran "npm run db:up" 
 - Navigate to apps/backend and run "npx prisma migrate dev --name init"
+- Then run npx prisma generate
 - Then run "npm run prisma:studio" this opens up prisma studio where you can view db. (Never manually edit db, editing types etc)
 - Look up how to use prisma studio
 
