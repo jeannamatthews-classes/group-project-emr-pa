@@ -29,7 +29,6 @@ Assuming you have already run git init locally:<br>
 - run npx prisma generate
     - When to do this: first setup and after schema changes
 - run npm run prisma:migrate
-    - Fix: this is the correct command
     - When to do this: first setup and whenever new migrations exist
 
 - go back to root (../..)
