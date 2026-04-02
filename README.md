@@ -38,7 +38,7 @@ Assuming you have already run git init locally:<br>
 
 
 ## Start up prisma
-- Make sure you have run npm run db:up
+- Make sure you have ran "npm run db:up"
 - Navigate to apps/backend and run npx prisma migrate dev --name init
     - When to do this: first migration on a fresh local DB, or when creating a new schema migration
 - Then run npx prisma generate
