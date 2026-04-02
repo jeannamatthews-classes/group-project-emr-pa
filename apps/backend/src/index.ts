@@ -3,43 +3,53 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { prisma } from './db';
 import authRoutes from './routes/auth';
+import notesRoutes from './routes/notes';
+import casesRoutes from './routes/cases';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors({
-  origin: 'http://localhost:5173', // Frontend URL
-  credentials: true,
-}));
+// Middleware connecting the frontend to the backend
+app.use(
+  cors({
+    origin: 'http://localhost:5173', // URL to the frontend
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check route
+// Check to see if the server is running
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'Server is running' });
 });
 
-// Database connection test
+// Test the connection to the database
 app.get('/api/db-test', async (req: Request, res: Response) => {
   try {
     const userCount = await prisma.user.count();
-    res.json({ 
-      status: 'Database connected', 
-      userCount 
+    res.json({
+      status: 'Database connected',
+      userCount,
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Database connection failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
 
-// Authentication routes
+// Routes for the authentication
 app.use('/api/auth', authRoutes);
+
+// Notes routes (student note creation/upload)
+app.use('/api/notes', notesRoutes);
+
+// Case routes
+app.use('/api/cases', casesRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -66,3 +76,4 @@ app.listen(PORT, () => {
 });
 
 export default app;
+
