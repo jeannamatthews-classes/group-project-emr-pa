@@ -6,11 +6,61 @@ datasource db {
   provider = "postgresql"
 }
 
+/// App login accounts (JWT auth).
 model User {
-  id        String     @id @default(uuid())
-  username  String     @unique
-  email     String     @unique
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
   password  String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notes Note[]
+}
+
+/// Patient / chart header (demographics + status).
+model Patient {
+  id         Int      @id @default(autoincrement())
+  /// Optional case title from the student UI (legacy `name` on old Case model).
+  caseTitle  String?
+  /// Patient name (diagram: Name).
+  name       String
+  location   String
+  dob        DateTime @db.Date
+  gender     String
+  codeStatus String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  chiefComplaints ChiefComplaint[]
+  notes           Note[]
+}
+
+/// One-to-many from Patient: specific complaints.
+model ChiefComplaint {
+  id            Int     @id @default(autoincrement())
+  patientId     Int
+  complaintText String
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+/// Student narrative per patient (HPI, exam, feedback). Maps the “Text Fields” concept + auth.
+model Note {
+  id           String   @id @default(uuid())
+  patientId    Int
+  studentId    String
+  hpi          String
+  physicalExam String
+  feedback     String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, patientId], name: "studentId_patientId")
 }
