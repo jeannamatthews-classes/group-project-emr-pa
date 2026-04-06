@@ -101,6 +101,19 @@ export default function PortalPage() {
                 Go to Faculty Page
               </Button>
             </Stack>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <Button
+                  component={RouterLink}
+                  to="/student"
+                  variant="outlined"
+                  size="small"
+                  sx={portalButtonSx}
+                  fullWidth
+                >
+                  Go to Student View
+                </Button>
+              </Stack>
           </Stack>
         </CardContent>
       </Card>
