@@ -13,6 +13,19 @@ function resolveAdminBaseUrl(authBaseUrl: string): string {
     }
     return `${authBaseUrl}/api/admin`;
 }
+
+function resolveApiRoot(authBaseUrl: string): string {
+    if (authBaseUrl.endsWith("/api/auth")) {
+        return authBaseUrl.replace(/\/auth$/, "");
+    }
+    if (authBaseUrl.endsWith("/auth")) {
+        return authBaseUrl.replace(/\/auth$/, "");
+    }
+    if (authBaseUrl.endsWith("/api")) {
+        return authBaseUrl;
+    }
+    return `${authBaseUrl}/api`;
+}
 const AUTH_ENDPOINTS = {
     login: "/login",
     register: "/register",
@@ -24,6 +37,7 @@ type AuthUser = {
     id: string;
     username: string;
     email: string;
+    role: "admin" | "faculty" | "student" | "unassigned";
 };
 
 type LoginInput = {
@@ -179,6 +193,90 @@ export type AdminLogItem = {
 };
 
 const ADMIN_BASE_URL = resolveAdminBaseUrl(AUTH_BASE_URL);
+const API_ROOT = resolveApiRoot(AUTH_BASE_URL);
+const CASES_BASE_URL = `${API_ROOT}/cases`;
+const NOTES_BASE_URL = `${API_ROOT}/notes`;
+
+export type StudentCaseItem = {
+    id: number;
+    name: string;
+    patient: string;
+    location?: string;
+    dob?: string;
+    gender?: string;
+    codeStatus?: string;
+    createdAt?: string;
+    updatedAt?: string;
+};
+
+export type StudentNoteItem = {
+    id: string;
+    caseId: number;
+    hpi: string;
+    physicalExam: string;
+    assess?: string;
+    treat?: string;
+    feedback: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export async function studentListCases(token: string): Promise<{ cases: StudentCaseItem[] }> {
+    const response = await fetch(CASES_BASE_URL, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    return parseResponse<{ cases: StudentCaseItem[] }>(response);
+}
+
+export async function studentCreateCase(
+    token: string,
+    payload: {
+        name: string;
+        patient: string;
+        location?: string;
+        dob?: string;
+        gender?: string;
+        codeStatus?: string;
+    }
+): Promise<{ case: StudentCaseItem }> {
+    const response = await fetch(CASES_BASE_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse<{ case: StudentCaseItem }>(response);
+}
+
+export async function studentGetMyNoteForCase(token: string, caseId: number): Promise<{ note: StudentNoteItem }> {
+    const response = await fetch(`${NOTES_BASE_URL}?caseId=${encodeURIComponent(String(caseId))}`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    return parseResponse<{ note: StudentNoteItem }>(response);
+}
+
+export async function studentSaveNote(
+    token: string,
+    payload: { caseId: number; hpi: string; exam: string; assess?: string; treat?: string }
+): Promise<{ note: StudentNoteItem }> {
+    const response = await fetch(NOTES_BASE_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse<{ note: StudentNoteItem }>(response);
+}
 
 export async function adminListUsers(token: string): Promise<{ users: AdminUserListItem[]; total: number }> {
     const response = await fetch(`${ADMIN_BASE_URL}/users`, {

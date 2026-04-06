@@ -17,10 +17,6 @@ model User {
   updatedAt  DateTime   @updatedAt
   actedLogs  AuditLog[] @relation("AuditActor")
   targetLogs AuditLog[] @relation("AuditTarget")
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> c634f049d11de0083d864dac35c0786b48e7220c
 
   notes Note[]
 }
@@ -74,13 +70,6 @@ model Note {
 
   
 
-<<<<<<< HEAD
-=======
-=======
-}
-
->>>>>>> b9ac65b7603739e3e6f17f36fd1993582e46edde
->>>>>>> c634f049d11de0083d864dac35c0786b48e7220c
 model AuditLog {
   id           String   @id @default(cuid())
   eventType    String

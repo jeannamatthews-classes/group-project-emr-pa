@@ -33,6 +33,10 @@ export async function deleteUserById(
   userId: string,
   actorUserId: string
 ): Promise<AdminDeleteUserResponse> {
+  if (userId === actorUserId) {
+    throw new Error('Admins cannot delete their own account');
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, username: true, role: true },
@@ -69,6 +73,10 @@ export async function updateUserRoleById(
   role: UserRole,
   actorUserId: string
 ): Promise<AdminUpdateUserRoleResponse> {
+  if (userId === actorUserId) {
+    throw new Error('Admins cannot change their own role');
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, username: true, role: true, createdAt: true },
@@ -128,6 +136,10 @@ export async function resetUserPassword(
   newPassword: string,
   actorUserId: string
 ): Promise<{ message: string }> {
+  if (userId === actorUserId) {
+    throw new Error('Admins cannot reset their own password from user management');
+  }
+
   if (!newPassword || newPassword.length < 8) {
     throw new Error('New password must be at least 8 characters');
   }
