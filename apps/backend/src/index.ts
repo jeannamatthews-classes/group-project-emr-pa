@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { prisma } from './db';
 import authRoutes from './routes/auth';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ app.get('/api/db-test', async (req: Request, res: Response) => {
 
 // Authentication routes
 app.use('/api/auth', authRoutes);
+
+// Admin routes
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
