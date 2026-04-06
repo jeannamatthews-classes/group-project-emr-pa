@@ -27,6 +27,8 @@ export default function Student() {
   const [search, setSearch] = useState("");
   const [hpi, setHpi] = useState("");
   const [exam, setExam] = useState("");
+  const [assess, setAssess] = useState("");
+  const [treat, setTreat] = useState("");
 
   const filteredCases = mockCases.filter((currentCase) =>
     currentCase.name.toLowerCase().includes(search.toLowerCase())
@@ -37,6 +39,8 @@ export default function Student() {
       caseId: selectedCase?.id,
       hpi,
       exam,
+      assess,
+      treat,
     };
 
     console.log("Saving Notes:", payload);
@@ -122,6 +126,28 @@ export default function Student() {
                 fullWidth
                 value={exam}
                 onChange={(event) => setExam(event.target.value)}
+              />
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Assessment"
+                multiline
+                rows={6}
+                fullWidth
+                value={assess}
+                onChange={(event) => setAssess(event.target.value)}
+              />
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Treatment Plan"
+                multiline
+                rows={6}
+                fullWidth
+                value={treat}
+                onChange={(event) => setTreat(event.target.value)}
               />
             </Box>
 
