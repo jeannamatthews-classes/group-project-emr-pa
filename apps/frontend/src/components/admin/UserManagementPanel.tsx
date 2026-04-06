@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   adminDeleteUser,
   adminListUsers,
+  getMe,
   adminUpdateUserRole,
   adminResetUserPassword,
   getStoredToken,
@@ -48,6 +49,7 @@ export default function UserManagementPanel() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const loadUsers = async () => {
     try {
@@ -57,8 +59,9 @@ export default function UserManagementPanel() {
       if (!token) {
         throw new Error("Not authenticated");
       }
-      const data = await adminListUsers(token);
+      const [data, me] = await Promise.all([adminListUsers(token), getMe(token)]);
       setUsers(data.users);
+      setCurrentUserId(me.user.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
@@ -213,7 +216,7 @@ export default function UserManagementPanel() {
                     <Select
                       size="small"
                       value={user.role}
-                      disabled={updatingRoleId === user.id}
+                      disabled={updatingRoleId === user.id || currentUserId === user.id}
                       onChange={(e) => void handleRoleChange(user.id, e.target.value as AdminRole)}
                       sx={{
                         minWidth: 124,
@@ -233,7 +236,7 @@ export default function UserManagementPanel() {
                       size="small"
                       variant="outlined"
                       color="warning"
-                      disabled={updatingRoleId === user.id}
+                      disabled={updatingRoleId === user.id || currentUserId === user.id}
                       onClick={() => { setResetTarget(user); setResetPassword(""); }}
                     >
                       Reset Pw
@@ -242,7 +245,7 @@ export default function UserManagementPanel() {
                       size="small"
                       variant="outlined"
                       color="error"
-                      disabled={updatingRoleId === user.id}
+                      disabled={updatingRoleId === user.id || currentUserId === user.id}
                       onClick={() => void handleDelete(user.id)}
                     >
                       Delete

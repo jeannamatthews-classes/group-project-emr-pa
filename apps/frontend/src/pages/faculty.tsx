@@ -9,6 +9,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import LogoutButton from "../components/LogoutButton";
+import UserNameBadge from "../components/UserNameBadge";
 
 type View =
   | { type: "main" }
@@ -56,7 +58,15 @@ const panelStyle = {
   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
   flex: 1,
   display: "flex",
-  flexDirection: "column"
+  flexDirection: "column",
+  minWidth: 0,
+};
+
+const actionButtonSx = {
+  borderRadius: 2,
+  textTransform: "none",
+  px: 2,
+  fontWeight: 600,
 };
 
 export default function FacultyDashboard() {
@@ -64,9 +74,6 @@ export default function FacultyDashboard() {
 
   const [studentSearch, setStudentSearch] = useState("");
   const [caseSearch, setCaseSearch] = useState("");
-
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
 
   const filteredStudents = mockStudents.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
   const filteredCases = mockCases.filter((c) =>c.title.toLowerCase().includes(caseSearch.toLowerCase())
@@ -82,15 +89,22 @@ export default function FacultyDashboard() {
       <Box 
         sx={{ 
           bgcolor: "#f4f7fb",
-          height: "100vh",
+          minHeight: "100vh",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          overflowX: "hidden",
         }}
       >
-        <Box sx={{ px: 4, pt: 4 }}>
+        <Box sx={{ px: { xs: 2, md: 4 }, pt: 4 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 1 }}>
+            <UserNameBadge />
+            <LogoutButton variant="outlined" size="small" />
+          </Box>
           <Button 
+            variant="outlined"
+            size="small"
             onClick={() => setView({ type: "main"})}
-            sx={{ mb: 2 }}
+            sx={{ ...actionButtonSx, mb: 2 }}
           >
             Back
           </Button>
@@ -103,12 +117,13 @@ export default function FacultyDashboard() {
         <Box 
           sx={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
             gap: 3,
             flex: 1,
-            px: 4,
+            px: { xs: 2, md: 4 },
             pb: 4,
             width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <Box sx={panelStyle}>
@@ -161,10 +176,16 @@ export default function FacultyDashboard() {
     const student = mockStudents.find(s => s.id === assignedStudent?.studentId);
   
     return (
-      <Box sx={{ p: 4 }}>
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: "100vh", bgcolor: "#f4f7fb", boxSizing: "border-box", overflowX: "hidden" }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 1 }}>
+          <UserNameBadge />
+          <LogoutButton variant="outlined" size="small" />
+        </Box>
         <Button 
+            variant="outlined"
+            size="small"
             onClick={() => setView({ type: "main" })}
-            sx={{ mb: 2 }}
+            sx={{ ...actionButtonSx, mb: 2 }}
           >
             Back
           </Button>
@@ -186,8 +207,17 @@ export default function FacultyDashboard() {
 
   if (view.type === "caseTemplate") {
     return (
-      <Box p={4}>
-        <Button onClick={() => setView({ type: "main"})}>
+      <Box sx={{ p: { xs: 2, md: 4 }, minHeight: "100vh", bgcolor: "#f4f7fb", boxSizing: "border-box", overflowX: "hidden" }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 1 }}>
+          <UserNameBadge />
+          <LogoutButton variant="outlined" size="small" />
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setView({ type: "main"})}
+          sx={actionButtonSx}
+        >
           Back
         </Button>
 
@@ -202,12 +232,17 @@ export default function FacultyDashboard() {
     <Box
       sx={{
         bgcolor: "#f4f7fb",
-        height: "100vh",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
+        overflowX: "hidden",
       }}
     >
-      <Box sx={{ px: 4, pt: 4 }}>
+      <Box sx={{ px: { xs: 2, md: 4 }, pt: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1, mb: 1 }}>
+          <UserNameBadge />
+          <LogoutButton variant="outlined" size="small" />
+        </Box>
         <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
           Faculty Dashboard
         </Typography>
@@ -216,12 +251,13 @@ export default function FacultyDashboard() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
           gap: 3,
           flex: 1,
-          px: 4,
+          px: { xs: 2, md: 4 },
           pb: 4,
           width: "100%",
+          boxSizing: "border-box",
         }}
       >
         <Box sx={panelStyle}>
@@ -242,7 +278,6 @@ export default function FacultyDashboard() {
               <ListItemButton 
                 key={student.id}
                 onClick={() => setView({ type: "student", studentId: student.id })}
-                selected={selectedStudent?.id === student.id}
                 sx={{ borderRadius: 2, mb: 1 }}
                 >
                 <ListItemText primary={student.name}/>
@@ -269,7 +304,6 @@ export default function FacultyDashboard() {
               <ListItemButton 
                 key={c.id}
                 onClick={() => setView({ type: "caseTemplate", caseId: c.id})}
-                selected={selectedCase?.id === c.id}
                 sx={{ borderRadius: 2, mb: 1 }}
                 >
                 <ListItemText
