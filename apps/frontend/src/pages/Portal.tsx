@@ -106,7 +106,7 @@ export default function PortalPage() {
                 <Button
                   component={RouterLink}
                   to="/student"
-                  variant="outlined"
+                  variant="contained"
                   size="small"
                   sx={portalButtonSx}
                   fullWidth
