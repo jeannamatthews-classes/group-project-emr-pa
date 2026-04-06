@@ -5,6 +5,7 @@ import { prisma } from './db';
 import authRoutes from './routes/auth';
 import notesRoutes from './routes/notes';
 import casesRoutes from './routes/cases';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -50,6 +51,9 @@ app.use('/api/notes', notesRoutes);
 
 // Case routes
 app.use('/api/cases', casesRoutes);
+
+// Admin routes
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

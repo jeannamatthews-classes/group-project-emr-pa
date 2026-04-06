@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 import { authMiddleware } from '../middleware/auth';
+import { createAuditLog } from '../services/auditLogService';
 
 //renamed branch
 const router = express.Router();
@@ -54,7 +55,14 @@ router.post('/register', async (req: Request, res: Response) => {
         username,
         email,
         password: hashedPassword,
+        role: 'unassigned',
       },
+    });
+
+    await createAuditLog({
+      eventType: 'USER_REGISTERED',
+      message: `User ${user.username} registered`,
+      targetUserId: user.id,
     });
 
     // Generate token
@@ -66,6 +74,7 @@ router.post('/register', async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        role: user.role,
       },
       token,
     });
@@ -123,6 +132,7 @@ router.post('/login', async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        role: user.role,
       },
       token,
     });
@@ -147,6 +157,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
         id: true,
         username: true,
         email: true,
+        role: true,
         createdAt: true,
       },
     });
