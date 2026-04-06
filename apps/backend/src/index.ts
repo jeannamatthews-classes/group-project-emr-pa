@@ -3,8 +3,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { prisma } from './db';
 import authRoutes from './routes/auth';
+<<<<<<< HEAD
 import notesRoutes from './routes/notes';
 import casesRoutes from './routes/cases';
+=======
+>>>>>>> b9ac65b7603739e3e6f17f36fd1993582e46edde
 import adminRoutes from './routes/admin';
 
 dotenv.config();
@@ -46,12 +49,15 @@ app.get('/api/db-test', async (req: Request, res: Response) => {
 // Routes for the authentication
 app.use('/api/auth', authRoutes);
 
+<<<<<<< HEAD
 // Notes routes (student note creation/upload)
 app.use('/api/notes', notesRoutes);
 
 // Case routes
 app.use('/api/cases', casesRoutes);
 
+=======
+>>>>>>> b9ac65b7603739e3e6f17f36fd1993582e46edde
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
