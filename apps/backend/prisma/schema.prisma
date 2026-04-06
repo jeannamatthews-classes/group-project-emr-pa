@@ -8,12 +8,15 @@ datasource db {
 
 /// App login accounts (JWT auth).
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String     @id @default(uuid())
+  username   String     @unique
+  email      String     @unique
+  password   String
+  role       String     @default("unassigned")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  actedLogs  AuditLog[] @relation("AuditActor")
+  targetLogs AuditLog[] @relation("AuditTarget")
 
   notes Note[]
 }
@@ -63,4 +66,22 @@ model Note {
   updatedAt DateTime @updatedAt
 
   @@unique([studentId, patientId], name: "studentId_patientId")
+}
+
+  
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  eventType    String
+  message      String
+  actorUserId  String?
+  targetUserId String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  actorUser  User? @relation("AuditActor",  fields: [actorUserId],  references: [id], onDelete: SetNull)
+  targetUser User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([createdAt])
 }
