@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "predev": "prisma generate",
     "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
     "prisma:init": "prisma init",
     "prisma:studio": "prisma studio",

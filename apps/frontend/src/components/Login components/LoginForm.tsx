@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ComponentProps } from "react";
 import { Alert, Box, Card, CardContent, Link, Stack, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LoginInput from "./LoginInput";
 import Botton from "./botton";
 import useLogin from "./useLogin";
@@ -9,9 +9,29 @@ import useLogin from "./useLogin";
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
   const { loading, error, handleLogin, clearError } = useLogin({
-    redirectTo: "/portal",
+    onSuccess: (result) => {
+      const role = result.user.role;
+
+      if (role === "student") {
+        navigate("/student", { replace: true });
+        return;
+      }
+
+      if (role === "faculty") {
+        navigate("/faculty", { replace: true });
+        return;
+      }
+
+      if (role === "admin") {
+        navigate("/portal", { replace: true });
+        return;
+      }
+
+      navigate("/unassigned", { replace: true });
+    },
   });
 
   const onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]> = async (event) => {

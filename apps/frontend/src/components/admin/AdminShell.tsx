@@ -1,6 +1,8 @@
 import type { PropsWithChildren } from "react";
 import { AppBar, Box, Container, Toolbar, Typography } from "@mui/material";
 import AdminSidebar from "./AdminSidebar";
+import LogoutButton from "../LogoutButton";
+import UserNameBadge from "../UserNameBadge";
 
 type AdminShellProps = PropsWithChildren<{
   title: string;
@@ -25,6 +27,10 @@ export default function AdminShell({
             <Typography variant="h6" color="#1b2a41" fontWeight={700}>
               EMR-PA System Administration
             </Typography>
+            <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1 }}>
+              <UserNameBadge />
+              <LogoutButton variant="outlined" size="small" />
+            </Box>
           </Toolbar>
         </AppBar>
 
