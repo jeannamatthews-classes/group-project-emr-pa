@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import LogoutButton from "./LogoutButton";
 
 type Case = {
     id: number;
@@ -92,6 +93,10 @@ export default function Student() {
       </Drawer>
 
       <Box sx={{ flex: 1, ml: "280px", p: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <LogoutButton variant="outlined" size="small" />
+        </Box>
+
         {!selectedCase ? (
           <Typography>Select a case to begin.</Typography>
         ) : (
