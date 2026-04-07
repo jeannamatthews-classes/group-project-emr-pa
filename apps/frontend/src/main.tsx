@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
@@ -8,6 +8,7 @@ import LoginPage from "./pages/Login";
 import PortalPage from "./pages/Portal";
 import RegisterPage from "./pages/Register";
 import StudentPage from "./pages/student";
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

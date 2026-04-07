@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Collapse from "@mui/material/Collapse";
 
 import {
   Box,
@@ -64,6 +65,29 @@ export default function Student() {
     console.log("Saving Notes:", payload);
   };
 
+  const [openSections, setOpenSections] = useState({
+    hpi: true,
+    med: false,
+    exam: false,
+    aller: false,
+    assess: false,
+    fhist: false,
+    shist: false,
+    proc: false,
+    diag: false,
+    lad: false,
+    treat: false,
+    cab: false,
+    learn: false,
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   const handleSubmit = () => {
     console.log("Submitting assignment...");
   };
@@ -124,139 +148,539 @@ export default function Student() {
             <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
               Patient: {selectedCase.patient}
             </Typography>
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("hpi")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>HPI</Typography>
+                <Typography>
+                  {openSections.hpi ? "▲" : "▼"}
+                </Typography>
+              </Box>
 
-            <Box sx={{ mt: 3 }}>
-              <TextField
-                label="HPI"
-                multiline
-                rows={6}
-                fullWidth
-                value={hpi}
-                onChange={(event) => setHpi(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Medications"
-                multiline
-                rows={6}
-                fullWidth
-                value={med}
-                onChange={(event) => setMed(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Physical Exam"
-                multiline
-                rows={6}
-                fullWidth
-                value={exam}
-                onChange={(event) => setExam(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Allergies"
-                multiline
-                rows={6}
-                fullWidth
-                value={aller}
-                onChange={(event) => setAllerg(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Assessment"
-                multiline
-                rows={6}
-                fullWidth
-                value={assess}
-                onChange={(event) => setAssess(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Family History"
-                multiline
-                rows={6}
-                fullWidth
-                value={fhist}
-                onChange={(event) => setFHist(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Social History"
-                multiline
-                rows={6}
-                fullWidth
-                value={shist}
-                onChange={(event) => setSHist(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Procedures"
-                multiline
-                rows={6}
-                fullWidth
-                value={proc}
-                onChange={(event) => setProc(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Diagnosis"
-                multiline
-                rows={6}
-                fullWidth
-                value={diag}
-                onChange={(event) => setDiag(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Labs and Diagnostics"
-                multiline
-                rows={6}
-                fullWidth
-                value={lad}
-                onChange={(event) => setLAD(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Treatment Plan"
-                multiline
-                rows={6}
-                fullWidth
-                value={treat}
-                onChange={(event) => setTreat(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Coding and Billing"
-                multiline
-                rows={6}
-                fullWidth
-                value={cab}
-                onChange={(event) => setCAB(event.target.value)}
-              />
-            </Box>
-            <Box sx={{ mt: 2 }}>
-              <TextField
-                label="Learning Issues"
-                multiline
-                rows={6}
-                fullWidth
-                value={learn}
-                onChange={(event) => setLearn(event.target.value)}
-              />
-            </Box>
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.hpi}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={hpi}
+                    onChange={(e) => setHpi(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
 
+            //////////
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("med")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Medications</Typography>
+                <Typography>
+                  {openSections.med ? "▲" : "▼"}
+                </Typography>
+              </Box>
 
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.med}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={med}
+                    onChange={(e) => setMed(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+            /////////
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("exam")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Physical Exam</Typography>
+                <Typography>
+                  {openSections.exam ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.exam}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={exam}
+                    onChange={(e) => setExam(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("aller")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Allergies</Typography>
+                <Typography>
+                  {openSections.aller ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.aller}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={aller}
+                    onChange={(e) => setAllerg(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("assess")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Assessment</Typography>
+                <Typography>
+                  {openSections.assess ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.assess}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={assess}
+                    onChange={(e) => setAssess(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("fhist")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Family History</Typography>
+                <Typography>
+                  {openSections.fhist ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.fhist}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={fhist}
+                    onChange={(e) => setFHist(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("shist")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Social History</Typography>
+                <Typography>
+                  {openSections.hpi ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.shist}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={shist}
+                    onChange={(e) => setSHist(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("proc")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Procedures</Typography>
+                <Typography>
+                  {openSections.proc ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.proc}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={proc}
+                    onChange={(e) => setProc(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("diag")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Diagnosis</Typography>
+                <Typography>
+                  {openSections.diag ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.diag}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={diag}
+                    onChange={(e) => setDiag(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("lad")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Lab and Diagnostics</Typography>
+                <Typography>
+                  {openSections.lad ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.lad}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={lad}
+                    onChange={(e) => setLAD(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("treat")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Treatment Plan</Typography>
+                <Typography>
+                  {openSections.treat ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.treat}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={treat}
+                    onChange={(e) => setTreat(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("cab")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Coding and Billing</Typography>
+                <Typography>
+                  {openSections.cab ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.cab}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={cab}
+                    onChange={(e) => setCAB(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
+
+            <> <Box
+              sx={{
+                mt: 3,
+                border: "1px solid #dbe4f0",
+                borderRadius: 2,
+                overflow: "hidden",
+                bgcolor: "#fff",
+              }}
+            >
+              {/* CLICKABLE HEADER */}
+              <Box
+                onClick={() => toggleSection("learn")}
+                sx={{
+                  p: 2,
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f7f9fc",
+                }}
+              >
+                <Typography fontWeight={600}>Learning Issues</Typography>
+                <Typography>
+                  {openSections.learn ? "▲" : "▼"}
+                </Typography>
+              </Box>
+
+              {/* ANIMATED CONTENT */}
+              <Collapse in={openSections.learn}>
+                <Box sx={{ p: 2 }}>
+                  <TextField
+                    multiline
+                    rows={6}
+                    fullWidth
+                    value={learn}
+                    onChange={(e) => setLearn(e.target.value)}
+                  />
+                </Box>
+              </Collapse>
+            </Box> </>
 
 
             <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
@@ -271,6 +695,6 @@ export default function Student() {
           </Box>
         )}
       </Box>
-    </Box>
+    </Box >
   );
 }
