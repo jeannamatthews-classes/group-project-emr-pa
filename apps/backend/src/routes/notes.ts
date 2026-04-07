@@ -10,8 +10,8 @@ type UpsertNoteBody = {
   hpi?: unknown;
   // Uses the exam label but stores as physicalExam in the database
   exam?: unknown;
-  assess?: unknown;
-  treat?: unknown;
+  assessment?: unknown;
+  treatmentPlan?: unknown;
 };
 
 // Function to parse the caseId from the request body
@@ -31,31 +31,19 @@ function noteToResponse(
     studentId: string;
     hpi: string;
     physicalExam: string;
+    assessment: string | null;
+    treatmentPlan: string | null;
     feedback: string | null;
     createdAt: Date;
     updatedAt: Date;
   } & ({ patientId: number } | { caseId: number })
 ) {
   const caseId = 'patientId' in note ? note.patientId : note.caseId;
-  let assess = '';
-  let treat = '';
-
-  if (note.feedback) {
-    try {
-      const parsed = JSON.parse(note.feedback) as { assess?: unknown; treat?: unknown };
-      assess = typeof parsed.assess === 'string' ? parsed.assess : '';
-      treat = typeof parsed.treat === 'string' ? parsed.treat : '';
-    } catch {
-      assess = '';
-      treat = '';
-    }
-  }
-
   return {
     ...note,
     caseId,
-    assess,
-    treat,
+    assess: note.assessment ?? '',
+    treat: note.treatmentPlan ?? '',
   };
 }
 
@@ -137,9 +125,8 @@ router.post('/', async (req: Request, res: Response) => {
     const caseIdParsed = parsePositiveInt(body.caseId);
     const hpi = typeof body.hpi === 'string' ? body.hpi : null;
     const exam = typeof body.exam === 'string' ? body.exam : null;
-    const assess = typeof body.assess === 'string' ? body.assess : '';
-    const treat = typeof body.treat === 'string' ? body.treat : '';
-    const feedback = assess || treat ? JSON.stringify({ assess, treat }) : null;
+    const assessment = typeof body.assessment === 'string' ? body.assessment : null;
+    const treatmentPlan = typeof body.treatmentPlan === 'string' ? body.treatmentPlan : null;
 
     // If the caseId, hpi, or exam is missing, return an error
     if (caseIdParsed === null || hpi === null || exam === null) {
@@ -170,14 +157,16 @@ router.post('/', async (req: Request, res: Response) => {
       update: {
         hpi,
         physicalExam: exam,
-        feedback,
+        assessment,
+        treatmentPlan,
       },
       create: {
         studentId,
         patientId: caseIdParsed,
         hpi,
         physicalExam: exam,
-        feedback,
+        assessment,
+        treatmentPlan,
       },
     });
 
@@ -200,12 +189,11 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const noteId = paramString(req.params.id);
-    const body = (req.body ?? {}) as { hpi?: unknown; exam?: unknown; assess?: unknown; treat?: unknown };
+    const body = (req.body ?? {}) as { hpi?: unknown; exam?: unknown; assessment?: unknown; treatmentPlan?: unknown };
     const hpi = typeof body.hpi === 'string' ? body.hpi : null;
     const exam = typeof body.exam === 'string' ? body.exam : null;
-    const assess = typeof body.assess === 'string' ? body.assess : '';
-    const treat = typeof body.treat === 'string' ? body.treat : '';
-    const feedback = assess || treat ? JSON.stringify({ assess, treat }) : null;
+    const assessment = typeof body.assessment === 'string' ? body.assessment : null;
+    const treatmentPlan = typeof body.treatmentPlan === 'string' ? body.treatmentPlan : null;
 
     // If the hpi or exam is missing, return an error
     if (hpi === null || exam === null) {
@@ -227,7 +215,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     // Update the note for the given noteId
     const updated = await prisma.note.update({
       where: { id: noteId },
-      data: { hpi, physicalExam: exam, feedback },
+      data: { hpi, physicalExam: exam, assessment, treatmentPlan },
     });
 
     // Return the updated note
