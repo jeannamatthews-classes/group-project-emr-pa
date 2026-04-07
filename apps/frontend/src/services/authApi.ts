@@ -152,12 +152,38 @@ type LogoutOptions = {
   storageKey?: string;
 };
 
+const GUEST_MODE_KEY = "guest_mode";
+const GUEST_ROLE_KEY = "guest_role";
+
+export type GuestRole = "faculty" | "student";
+
+export function enableGuestMode(role: GuestRole = "faculty"): void {
+    localStorage.setItem(GUEST_MODE_KEY, "true");
+    localStorage.setItem(GUEST_ROLE_KEY, role);
+}
+
+export function disableGuestMode(): void {
+    localStorage.removeItem(GUEST_MODE_KEY);
+    localStorage.removeItem(GUEST_ROLE_KEY);
+}
+
+export function isGuestModeEnabled(): boolean {
+    return localStorage.getItem(GUEST_MODE_KEY) === "true";
+}
+
+export function getGuestRole(): GuestRole {
+    const role = localStorage.getItem(GUEST_ROLE_KEY);
+    return role === "student" ? "student" : "faculty";
+}
+
 export function logout(options: LogoutOptions = {}): void {
   const { clearStorage = true, storageKey = "auth_token" } = options;
 
   if (clearStorage) {
     localStorage.removeItem(storageKey);
   }
+
+    disableGuestMode();
 }
 
 export function getStoredToken(storageKey = "auth_token"): string | null {

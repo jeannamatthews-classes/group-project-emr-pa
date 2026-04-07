@@ -1,7 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import type { Student, Case, AssignedCase } from "../components/Imports";
-import { mockStudents, mockCases, mockAssignedCases, panelStyle } from "../components/Imports";
-import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 
 export default function CaseTemplatePage() {
     const { caseId } = useParams<{ caseId: string }>();
@@ -11,7 +9,7 @@ export default function CaseTemplatePage() {
  
     return (
       <Box p={4}>
-        <Button onClick={() => navigate("/")}>
+        <Button onClick={() => navigate(-1)}>
           Back
         </Button>
 

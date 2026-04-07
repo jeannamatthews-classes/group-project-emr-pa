@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Student, Case } from "../components/Imports";
 import { mockStudents, mockCases, panelStyle } from "../components/Imports";
 import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
 
