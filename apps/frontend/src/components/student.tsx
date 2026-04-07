@@ -12,14 +12,14 @@ import {
 } from "@mui/material";
 
 type Case = {
-    id: number;
-    name: string;
-    patient: string;
+  id: number;
+  name: string;
+  patient: string;
 };
 
 const mockCases: Case[] = [
-    { id: 1, name: "Chest Pain Case", patient: "John Doe" },
-    { id: 2, name: "Diabetes Follow-up", patient: "Jane Smith" },
+  { id: 1, name: "Chest Pain Case", patient: "John Doe" },
+  { id: 2, name: "Diabetes Follow-up", patient: "Jane Smith" },
 ];
 
 export default function Student() {
@@ -27,6 +27,17 @@ export default function Student() {
   const [search, setSearch] = useState("");
   const [hpi, setHpi] = useState("");
   const [exam, setExam] = useState("");
+  const [treat, setTreat] = useState("");
+  const [assess, setAssess] = useState("");
+  const [med, setMed] = useState("");
+  const [aller, setAllerg] = useState("");
+  const [fhist, setFHist] = useState("");
+  const [shist, setSHist] = useState("");
+  const [proc, setProc] = useState("");
+  const [diag, setDiag] = useState("");
+  const [lad, setLAD] = useState("");
+  const [cab, setCAB] = useState("");
+  const [learn, setLearn] = useState("");
 
   const filteredCases = mockCases.filter((currentCase) =>
     currentCase.name.toLowerCase().includes(search.toLowerCase())
@@ -37,6 +48,17 @@ export default function Student() {
       caseId: selectedCase?.id,
       hpi,
       exam,
+      treat,
+      assess,
+      med,
+      aller,
+      fhist,
+      shist,
+      proc,
+      diag,
+      lad,
+      cab,
+      learn
     };
 
     console.log("Saving Notes:", payload);
@@ -113,7 +135,16 @@ export default function Student() {
                 onChange={(event) => setHpi(event.target.value)}
               />
             </Box>
-
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Medications"
+                multiline
+                rows={6}
+                fullWidth
+                value={med}
+                onChange={(event) => setMed(event.target.value)}
+              />
+            </Box>
             <Box sx={{ mt: 2 }}>
               <TextField
                 label="Physical Exam"
@@ -124,6 +155,109 @@ export default function Student() {
                 onChange={(event) => setExam(event.target.value)}
               />
             </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Allergies"
+                multiline
+                rows={6}
+                fullWidth
+                value={aller}
+                onChange={(event) => setAllerg(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Assessment"
+                multiline
+                rows={6}
+                fullWidth
+                value={assess}
+                onChange={(event) => setAssess(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Family History"
+                multiline
+                rows={6}
+                fullWidth
+                value={fhist}
+                onChange={(event) => setFHist(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Social History"
+                multiline
+                rows={6}
+                fullWidth
+                value={shist}
+                onChange={(event) => setSHist(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Procedures"
+                multiline
+                rows={6}
+                fullWidth
+                value={proc}
+                onChange={(event) => setProc(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Diagnosis"
+                multiline
+                rows={6}
+                fullWidth
+                value={diag}
+                onChange={(event) => setDiag(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Labs and Diagnostics"
+                multiline
+                rows={6}
+                fullWidth
+                value={lad}
+                onChange={(event) => setLAD(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Treatment Plan"
+                multiline
+                rows={6}
+                fullWidth
+                value={treat}
+                onChange={(event) => setTreat(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Coding and Billing"
+                multiline
+                rows={6}
+                fullWidth
+                value={cab}
+                onChange={(event) => setCAB(event.target.value)}
+              />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Learning Issues"
+                multiline
+                rows={6}
+                fullWidth
+                value={learn}
+                onChange={(event) => setLearn(event.target.value)}
+              />
+            </Box>
+
+
+
 
             <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
               <Button variant="contained" onClick={handleSave}>
