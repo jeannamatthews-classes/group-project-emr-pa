@@ -138,8 +138,8 @@ export default function Student() {
         const data = await studentGetMyNoteForCase(token, selectedCaseId);
         setHpi(data.note.hpi ?? "");
         setExam(data.note.physicalExam ?? "");
-        setAssess(data.note.assess ?? "");
-        setTreat(data.note.treat ?? "");
+        setAssess(data.note.assessment ?? data.note.assess ?? "");
+        setTreat(data.note.treatmentPlan ?? data.note.treat ?? "");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load note";
         if (/No note found/i.test(message)) {
@@ -177,8 +177,8 @@ export default function Student() {
         caseId: selectedCase.id,
         hpi,
         exam,
-        assess,
-        treat,
+        assessment: assess,
+        treatmentPlan: treat,
       });
 
       setSuccessMsg("Notes saved successfully");
