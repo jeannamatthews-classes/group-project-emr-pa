@@ -50,14 +50,16 @@ model ChiefComplaint {
   @@index([patientId])
 }
 
-/// Student narrative per patient (HPI, exam, feedback). Maps the “Text Fields” concept + auth.
+/// Student narrative per patient (HPI, exam, assessment, treatment plan). Maps the "Text Fields" concept + auth.
 model Note {
-  id           String   @id @default(uuid())
-  patientId    Int
-  studentId    String
-  hpi          String
-  physicalExam String
-  feedback     String?
+  id             String   @id @default(uuid())
+  patientId      Int
+  studentId      String
+  hpi            String
+  physicalExam   String
+  assessment     String?
+  treatmentPlan  String?
+  feedback       String?
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
