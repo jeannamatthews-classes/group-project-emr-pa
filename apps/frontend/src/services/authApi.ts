@@ -214,11 +214,7 @@ export type StudentNoteItem = {
     caseId: number;
     hpi: string;
     physicalExam: string;
-    assessment?: string;
-    treatmentPlan?: string;
-    /** @deprecated kept for backwards compat; assessment/treatmentPlan are the real fields now */
     assess?: string;
-    /** @deprecated kept for backwards compat */
     treat?: string;
     feedback: string | null;
     createdAt: string;
@@ -269,7 +265,7 @@ export async function studentGetMyNoteForCase(token: string, caseId: number): Pr
 
 export async function studentSaveNote(
     token: string,
-    payload: { caseId: number; hpi: string; exam: string; assessment?: string; treatmentPlan?: string }
+    payload: { caseId: number; hpi: string; exam: string; assess?: string; treat?: string }
 ): Promise<{ note: StudentNoteItem }> {
     const response = await fetch(NOTES_BASE_URL, {
         method: "POST",

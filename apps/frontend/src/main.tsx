@@ -10,7 +10,6 @@ import PortalPage from "./pages/Portal";
 import RegisterPage from "./pages/Register";
 import StudentPage from "./pages/student";
 import UnassignedPage from "./pages/Unassigned";
-import RequireRole from "./components/RequireRole";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -21,11 +20,11 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/portal" element={<PortalPage />} />
         <Route path="/unassigned" element={<UnassignedPage />} />
-        <Route path="/faculty" element={<RequireRole allowed={["faculty", "admin"]}><FacultyPage /></RequireRole>} />
-        <Route path="/student" element={<RequireRole allowed={["student", "admin"]}><StudentPage /></RequireRole>} />
-        <Route path="/admin/users" element={<RequireRole allowed={["admin"]}><AdminUsersPage /></RequireRole>} />
-        <Route path="/admin/logs" element={<RequireRole allowed={["admin"]}><SystemLogsPage /></RequireRole>} />
-        <Route path="/admin/settings" element={<RequireRole allowed={["admin"]}><SettingsPage /></RequireRole>} />
+        <Route path="/faculty" element={<FacultyPage />} />
+        <Route path="/student" element={<StudentPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/logs" element={<SystemLogsPage />} />
+        <Route path="/admin/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

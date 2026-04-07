@@ -1,5 +1,6 @@
 import { Box, Container } from "@mui/material";
 import RegisterForm from "../components/Login components/RegisterForm";
+import LogoutButton from "../components/LogoutButton";
 
 export default function RegisterPage() {
   return (
@@ -13,6 +14,9 @@ export default function RegisterPage() {
       }}
     >
       <Container maxWidth="sm" disableGutters>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <LogoutButton variant="text" size="small" />
+        </Box>
         <RegisterForm />
       </Container>
     </Box>
