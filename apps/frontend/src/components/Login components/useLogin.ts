@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loginUser } from "../../services/authApi";
+import { disableGuestMode, loginUser } from "../../services/authApi";
 
 type LoginCredentials = {
   email: string;
@@ -56,6 +56,7 @@ export default function useLogin(options: UseLoginOptions = {}): UseLoginReturn 
 
       if (result.token) {
         localStorage.setItem(storageKey, result.token);
+        disableGuestMode();
       }
 
       onSuccess?.(result);

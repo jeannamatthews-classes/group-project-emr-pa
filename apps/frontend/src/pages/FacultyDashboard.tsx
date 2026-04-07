@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Student, Case, AssignedCase } from "../components/Imports";
-import { mockStudents, mockCases, mockAssignedCases, panelStyle } from "../components/Imports";
+import { mockStudents, mockCases, panelStyle } from "../components/Imports";
 import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
 
 export default function FacultyDashboard() {
