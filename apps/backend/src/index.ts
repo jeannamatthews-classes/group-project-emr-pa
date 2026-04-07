@@ -11,11 +11,22 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Middleware connecting the frontend to the backend
 app.use(
   cors({
-    origin: 'http://localhost:5173', // URL to the frontend
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );
