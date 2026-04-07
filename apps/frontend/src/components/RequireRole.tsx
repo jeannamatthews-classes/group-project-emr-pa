@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMe, getStoredToken } from "../services/authApi";
+import { getMe, getStoredToken, isGuestModeEnabled } from "../services/authApi";
 
 interface RequireRoleProps {
   allowed: string[];
@@ -11,10 +11,21 @@ export default function RequireRole({ allowed, children }: RequireRoleProps) {
   const navigate = useNavigate();
   const [ok, setOk] = useState(false);
 
+  const canUseGuestRoute = () => {
+    if (!isGuestModeEnabled()) {
+      return false;
+    }
+    return allowed.includes("faculty") || allowed.includes("student");
+  };
+
   useEffect(() => {
     const check = async () => {
       const token = getStoredToken();
       if (!token) {
+        if (canUseGuestRoute()) {
+          setOk(true);
+          return;
+        }
         navigate("/login", { replace: true });
         return;
       }
@@ -26,6 +37,10 @@ export default function RequireRole({ allowed, children }: RequireRoleProps) {
           navigate("/portal", { replace: true });
         }
       } catch {
+        if (canUseGuestRoute()) {
+          setOk(true);
+          return;
+        }
         navigate("/login", { replace: true });
       }
     };

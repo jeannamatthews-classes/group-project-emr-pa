@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LogoutButton from "../components/LogoutButton";
 import UserNameBadge from "../components/UserNameBadge";
-import { getMe, getStoredToken } from "../services/authApi";
+import { getMe, getStoredToken, isGuestModeEnabled } from "../services/authApi";
 
 const portalButtonSx = {
   borderRadius: 2,
@@ -15,12 +15,18 @@ const portalButtonSx = {
 export default function PortalPage() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
+  const [guestView, setGuestView] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
       const token = getStoredToken();
 
       if (!token) {
+        if (isGuestModeEnabled()) {
+          setGuestView(true);
+          setReady(true);
+          return;
+        }
         navigate("/login", { replace: true });
         return;
       }
@@ -71,7 +77,7 @@ export default function PortalPage() {
           <Stack spacing={2.5}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Typography variant="body2" color="text.secondary">
-                Login successful.
+                {guestView ? "Guest mode enabled." : "Login successful."}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <UserNameBadge />
@@ -79,17 +85,7 @@ export default function PortalPage() {
               </Box>
             </Box>
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <Button
-                component={RouterLink}
-                to="/admin/users"
-                variant="contained"
-                size="small"
-                sx={portalButtonSx}
-                fullWidth
-              >
-                Go to Admin Page
-              </Button>
+            {guestView ? null : (
               <Button
                 component={RouterLink}
                 to="/faculty"
@@ -100,20 +96,57 @@ export default function PortalPage() {
               >
                 Go to Faculty Page
               </Button>
-            </Stack>
+            )}
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                <Button
-                  component={RouterLink}
-                  to="/student"
-                  variant="contained"
-                  size="small"
-                  sx={portalButtonSx}
-                  fullWidth
-                >
-                  Go to Student View
-                </Button>
-              </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              {guestView ? (
+                <>
+                  <Button
+                    component={RouterLink}
+                    to="/faculty"
+                    variant="contained"
+                    size="small"
+                    sx={portalButtonSx}
+                    fullWidth
+                  >
+                    Go to Faculty Page
+                  </Button>
+                  <Button
+                    component={RouterLink}
+                    to="/student"
+                    variant="contained"
+                    size="small"
+                    sx={portalButtonSx}
+                    fullWidth
+                  >
+                    Go to Student View
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    component={RouterLink}
+                    to="/admin/users"
+                    variant="contained"
+                    size="small"
+                    sx={portalButtonSx}
+                    fullWidth
+                  >
+                    Go to Admin Page
+                  </Button>
+                  <Button
+                    component={RouterLink}
+                    to="/student"
+                    variant="contained"
+                    size="small"
+                    sx={portalButtonSx}
+                    fullWidth
+                  >
+                    Go to Student View
+                  </Button>
+                </>
+              )}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>

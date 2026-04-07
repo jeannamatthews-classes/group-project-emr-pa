@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import type { Student, Case, AssignedCase } from "../components/Imports";
-import { mockStudents, mockCases, mockAssignedCases, panelStyle } from "../components/Imports";
-import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
+import { mockStudents, mockCases, mockAssignedCases } from "../Imports";
+import { Box, Button, Typography } from "@mui/material";
 
 export default function StudentCasePage() {
   const { caseId } = useParams<{ caseId: string }>();
