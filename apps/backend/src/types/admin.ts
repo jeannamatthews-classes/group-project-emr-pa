@@ -27,7 +27,8 @@ export type AuditEventType =
   | 'USER_REGISTERED'
   | 'USER_DELETED'
   | 'USER_ROLE_CHANGED'
-  | 'USER_PASSWORD_RESET';
+  | 'USER_PASSWORD_RESET'
+  | 'ADMIN_PASSWORD_CHANGED';
 
 export type AdminLogItem = {
   id: string;
