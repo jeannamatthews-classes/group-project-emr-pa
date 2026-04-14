@@ -212,18 +212,20 @@ export default function UserManagementPanel() {
                 </TableCell>
                 <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell align="center">
-                  <Stack direction="row" spacing={1} justifyContent="center">
+                  <Stack direction="row" spacing={0.75} justifyContent="center" alignItems="center" sx={{ whiteSpace: "nowrap" }}>
                     <Select
                       size="small"
                       value={user.role}
                       disabled={updatingRoleId === user.id || currentUserId === user.id}
                       onChange={(e) => void handleRoleChange(user.id, e.target.value as AdminRole)}
                       sx={{
-                        minWidth: 124,
+                        width: 132,
+                        height: 30,
                         ".MuiSelect-select": {
-                          py: 0.5,
-                          px: 1,
-                          fontSize: 13,
+                          py: 0.25,
+                          px: 0.875,
+                          fontSize: 12,
+                          lineHeight: 1.2,
                         },
                       }}
                     >
@@ -237,6 +239,7 @@ export default function UserManagementPanel() {
                       variant="outlined"
                       color="warning"
                       disabled={updatingRoleId === user.id || currentUserId === user.id}
+                      sx={{ minWidth: 72, height: 30, px: 0.875, fontSize: 12, lineHeight: 1.2 }}
                       onClick={() => { setResetTarget(user); setResetPassword(""); }}
                     >
                       Reset Pw
@@ -246,6 +249,7 @@ export default function UserManagementPanel() {
                       variant="outlined"
                       color="error"
                       disabled={updatingRoleId === user.id || currentUserId === user.id}
+                      sx={{ minWidth: 58, height: 30, px: 0.875, fontSize: 12, lineHeight: 1.2 }}
                       onClick={() => void handleDelete(user.id)}
                     >
                       Delete

@@ -9,7 +9,7 @@ export default function CaseTemplatePage() {
  
     return (
       <Box p={4}>
-        <Button onClick={() => navigate(-1)}>
+        <Button onClick={() => navigate("/faculty")}>
           Back
         </Button>
 

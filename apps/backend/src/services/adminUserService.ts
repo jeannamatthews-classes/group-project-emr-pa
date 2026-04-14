@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { createAuditLog } from './auditLogService';
+import { comparePassword, hashPassword } from '../utils/auth';
 import type {
   AdminUserListItem,
   AdminUsersResponse,
@@ -170,4 +171,57 @@ export async function resetUserPassword(
   });
 
   return { message: 'Password reset successfully' };
+}
+
+export async function changeAdminOwnPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  if (!currentPassword || !newPassword) {
+    throw new Error('Current password and new password are required');
+  }
+
+  if (newPassword.length < 8) {
+    throw new Error('New password must be at least 8 characters');
+  }
+
+  if (currentPassword === newPassword) {
+    throw new Error('New password must be different from current password');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, email: true, username: true, password: true },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.role !== 'admin') {
+    throw new Error('Admin access required');
+  }
+
+  const passwordMatch = await comparePassword(currentPassword, user.password);
+  if (!passwordMatch) {
+    throw new Error('Current password is incorrect');
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  await createAuditLog({
+    eventType: 'ADMIN_PASSWORD_CHANGED',
+    message: `Admin ${user.email} changed their password`,
+    actorUserId: user.id,
+    targetUserId: user.id,
+    metadata: { username: user.username, email: user.email },
+  });
+
+  return { message: 'Password changed successfully' };
 }
