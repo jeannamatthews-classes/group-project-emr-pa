@@ -10,19 +10,14 @@ interface RequireRoleProps {
 export default function RequireRole({ allowed, children }: RequireRoleProps) {
   const navigate = useNavigate();
   const [ok, setOk] = useState(false);
-
-  const canUseGuestRoute = () => {
-    if (!isGuestModeEnabled()) {
-      return false;
-    }
-    return allowed.includes("faculty") || allowed.includes("student");
-  };
+  const canUseGuestRoute =
+    isGuestModeEnabled() && (allowed.includes("faculty") || allowed.includes("student"));
 
   useEffect(() => {
     const check = async () => {
       const token = getStoredToken();
       if (!token) {
-        if (canUseGuestRoute()) {
+        if (canUseGuestRoute) {
           setOk(true);
           return;
         }
@@ -37,7 +32,7 @@ export default function RequireRole({ allowed, children }: RequireRoleProps) {
           navigate("/portal", { replace: true });
         }
       } catch {
-        if (canUseGuestRoute()) {
+        if (canUseGuestRoute) {
           setOk(true);
           return;
         }
@@ -45,7 +40,7 @@ export default function RequireRole({ allowed, children }: RequireRoleProps) {
       }
     };
     void check();
-  }, [navigate, allowed]);
+  }, [navigate, allowed, canUseGuestRoute]);
 
   if (!ok) return null;
   return <>{children}</>;

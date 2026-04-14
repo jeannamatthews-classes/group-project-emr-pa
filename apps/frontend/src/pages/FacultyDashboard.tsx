@@ -1,13 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { mockStudents, mockCases, panelStyle } from "../components/Imports";
 import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
+import { getStoredToken } from "../services/authApi";
+import { facultyListStudents, type FacultyStudent } from "../services/facultyApi";
 
 export default function FacultyDashboard() {
   const [studentSearch, setStudentSearch] = useState("");
   const [caseSearch, setCaseSearch] = useState("");
+  const [students, setStudents] = useState<FacultyStudent[]>([]);
   const navigate = useNavigate();
-  const filteredStudents = mockStudents.filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadStudents() {
+      try {
+        const token = getStoredToken();
+        if (!token) return;
+        const { students: nextStudents } = await facultyListStudents(token);
+        if (!active) return;
+        setStudents(nextStudents);
+      } catch (error) {
+        if (!active) return;
+        console.error("Failed to load faculty students", error);
+      }
+    }
+
+    void loadStudents();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredStudents = (students.length > 0
+    ? students.map((s) => ({ id: s.id, name: s.username }))
+    : mockStudents
+  ).filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
   const filteredCases = mockCases.filter((c) =>c.title.toLowerCase().includes(caseSearch.toLowerCase()));
 
   return (
@@ -20,6 +49,9 @@ export default function FacultyDashboard() {
       }}
     >
       <Box sx={{ px: 4, pt: 4 }}>
+        <Button onClick={() => navigate("/portal")} sx={{ mb: 2 }}>
+          Back to Portal
+        </Button>
         <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
           Faculty Dashboard
         </Typography>

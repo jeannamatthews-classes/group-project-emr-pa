@@ -1,7 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
-import { listAllUsers, deleteUserById, updateUserRoleById, resetUserPassword } from '../services/adminUserService';
+import {
+  listAllUsers,
+  deleteUserById,
+  updateUserRoleById,
+  resetUserPassword,
+  changeAdminOwnPassword,
+} from '../services/adminUserService';
 import type { UserRole } from '../types/admin';
 import { getRecentAuditLogs } from '../services/auditLogService';
 
@@ -61,6 +67,25 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response) => 
     res.json(result);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Failed to reset password';
+    res.status(400).json({ error: msg });
+  }
+});
+
+router.post('/change-password', async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const currentPassword = (body as { currentPassword?: string }).currentPassword;
+    const newPassword = (body as { newPassword?: string }).newPassword;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current password and new password are required' });
+      return;
+    }
+
+    const result = await changeAdminOwnPassword(req.userId!, currentPassword, newPassword);
+    res.json(result);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Failed to change password';
     res.status(400).json({ error: msg });
   }
 });

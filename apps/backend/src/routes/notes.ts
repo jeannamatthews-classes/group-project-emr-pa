@@ -4,17 +4,23 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = express.Router();
 
-// Type for the body of the request to upsert a note
-type UpsertNoteBody = {
+type NoteBody = {
   caseId?: unknown;
   hpi?: unknown;
-  // Uses the exam label but stores as physicalExam in the database
   exam?: unknown;
   assessment?: unknown;
   treatmentPlan?: unknown;
+  medications?: unknown;
+  allergies?: unknown;
+  familyHistory?: unknown;
+  socialHistory?: unknown;
+  procedures?: unknown;
+  diagnosis?: unknown;
+  labAndDiagnostics?: unknown;
+  codingAndBilling?: unknown;
+  learningIssues?: unknown;
 };
 
-// Function to parse the caseId from the request body
 function parsePositiveInt(value: unknown): number | null {
   if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
   if (typeof value === 'string') {
@@ -24,27 +30,8 @@ function parsePositiveInt(value: unknown): number | null {
   return null;
 }
 
-/** API adds `caseId` (same value as `patientId`) for legacy clients. */
-function noteToResponse(
-  note: {
-    id: string;
-    studentId: string;
-    hpi: string;
-    physicalExam: string;
-    assessment: string | null;
-    treatmentPlan: string | null;
-    feedback: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } & ({ patientId: number } | { caseId: number })
-) {
-  const caseId = 'patientId' in note ? note.patientId : note.caseId;
-  return {
-    ...note,
-    caseId,
-    assess: note.assessment ?? '',
-    treat: note.treatmentPlan ?? '',
-  };
+function str(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
 }
 
 function paramString(id: string | string[] | undefined): string {
@@ -52,9 +39,41 @@ function paramString(id: string | string[] | undefined): string {
   return typeof raw === 'string' ? raw : String(raw ?? '');
 }
 
+function noteToResponse(note: {
+  id: string;
+  patientId: number;
+  studentId: string;
+  hpi: string;
+  physicalExam: string;
+  assessment: string | null;
+  treatmentPlan: string | null;
+  medications: string | null;
+  allergies: string | null;
+  familyHistory: string | null;
+  socialHistory: string | null;
+  procedures: string | null;
+  diagnosis: string | null;
+  labAndDiagnostics: string | null;
+  codingAndBilling: string | null;
+  learningIssues: string | null;
+  isSubmitted: boolean;
+  submittedAt: Date | null;
+  grade: number | null;
+  feedback: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    ...note,
+    caseId: note.patientId,
+    assess: note.assessment ?? '',
+    treat: note.treatmentPlan ?? '',
+  };
+}
+
 router.use(authMiddleware);
 
-// Gets all notes for the logged-in student
+// GET /api/notes — get notes for logged-in student
 router.get('/', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -65,7 +84,6 @@ router.get('/', async (req: Request, res: Response) => {
 
     const { caseId } = req.query;
 
-    // If no caseId is provided, get all notes for the student
     if (!caseId) {
       const notes = await prisma.note.findMany({
         where: { studentId },
@@ -75,35 +93,24 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Parse the caseId from the request query
     const caseIdParsed = Array.isArray(caseId)
       ? parsePositiveInt(caseId[0])
       : parsePositiveInt(caseId);
 
-    // If the caseId is invalid, return an error
     if (caseIdParsed === null) {
       res.status(400).json({ error: 'Invalid caseId' });
       return;
     }
 
-    // Get the note for the given caseId
     const note = await prisma.note.findUnique({
-      where: {
-        studentId_patientId: {
-          studentId,
-          patientId: caseIdParsed,
-        },
-      },
+      where: { studentId_patientId: { studentId, patientId: caseIdParsed } },
     });
-
-
 
     if (!note) {
       res.status(404).json({ error: 'No note found for this case' });
       return;
     }
 
-    // Return the note
     res.json({ note: noteToResponse(note) });
   } catch (error) {
     console.error('GET /api/notes error:', error);
@@ -111,9 +118,8 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/notes
+// POST /api/notes — upsert note for logged-in student
 router.post('/', async (req: Request, res: Response) => {
-  // Upserts the logged-in student's note for a given caseId.
   try {
     const studentId = req.userId;
     if (!studentId) {
@@ -121,56 +127,48 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const body = (req.body ?? {}) as UpsertNoteBody;
+    const body = (req.body ?? {}) as NoteBody;
     const caseIdParsed = parsePositiveInt(body.caseId);
-    const hpi = typeof body.hpi === 'string' ? body.hpi : null;
-    const exam = typeof body.exam === 'string' ? body.exam : null;
-    const assessment = typeof body.assessment === 'string' ? body.assessment : null;
-    const treatmentPlan = typeof body.treatmentPlan === 'string' ? body.treatmentPlan : null;
+    const hpi = str(body.hpi);
+    const exam = str(body.exam);
 
-    // If the caseId, hpi, or exam is missing, return an error
     if (caseIdParsed === null || hpi === null || exam === null) {
       res.status(400).json({ error: 'caseId, hpi, and exam are required' });
       return;
     }
 
-    // Get the medical case for the given caseId
     const medicalCase = await prisma.patient.findUnique({
       where: { id: caseIdParsed },
       select: { id: true },
     });
 
-    // If the medical case is not found, return an error
     if (!medicalCase) {
       res.status(404).json({ error: 'Case not found' });
       return;
     }
 
-    // Upsert the note for the given caseId
+    const data = {
+      hpi,
+      physicalExam: exam,
+      assessment: str(body.assessment),
+      treatmentPlan: str(body.treatmentPlan),
+      medications: str(body.medications),
+      allergies: str(body.allergies),
+      familyHistory: str(body.familyHistory),
+      socialHistory: str(body.socialHistory),
+      procedures: str(body.procedures),
+      diagnosis: str(body.diagnosis),
+      labAndDiagnostics: str(body.labAndDiagnostics),
+      codingAndBilling: str(body.codingAndBilling),
+      learningIssues: str(body.learningIssues),
+    };
+
     const note = await prisma.note.upsert({
-      where: {
-        studentId_patientId: {
-          studentId,
-          patientId: caseIdParsed,
-        },
-      },
-      update: {
-        hpi,
-        physicalExam: exam,
-        assessment,
-        treatmentPlan,
-      },
-      create: {
-        studentId,
-        patientId: caseIdParsed,
-        hpi,
-        physicalExam: exam,
-        assessment,
-        treatmentPlan,
-      },
+      where: { studentId_patientId: { studentId, patientId: caseIdParsed } },
+      update: data,
+      create: { studentId, patientId: caseIdParsed, ...data },
     });
 
-    // Return the note
     res.json({ note: noteToResponse(note) });
   } catch (error) {
     console.error('POST /api/notes error:', error);
@@ -178,9 +176,8 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/notes/:id
+// PUT /api/notes/:id — update existing note
 router.put('/:id', async (req: Request, res: Response) => {
-  // Updates the logged-in student's note for a given noteId.
   try {
     const studentId = req.userId;
     if (!studentId) {
@@ -189,36 +186,46 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const noteId = paramString(req.params.id);
-    const body = (req.body ?? {}) as { hpi?: unknown; exam?: unknown; assessment?: unknown; treatmentPlan?: unknown };
-    const hpi = typeof body.hpi === 'string' ? body.hpi : null;
-    const exam = typeof body.exam === 'string' ? body.exam : null;
-    const assessment = typeof body.assessment === 'string' ? body.assessment : null;
-    const treatmentPlan = typeof body.treatmentPlan === 'string' ? body.treatmentPlan : null;
+    const existing = await prisma.note.findFirst({ where: { id: noteId, studentId } });
 
-    // If the hpi or exam is missing, return an error
-    if (hpi === null || exam === null) {
-      res.status(400).json({ error: 'hpi and exam are required' });
-      return;
-    }
-
-    // Get the existing note for the given noteId
-    const existing = await prisma.note.findFirst({
-      where: { id: noteId, studentId },
-    });
-
-    // If the note is not found, return an error
     if (!existing) {
       res.status(404).json({ error: 'Note not found' });
       return;
     }
 
-    // Update the note for the given noteId
+    if (existing.isSubmitted) {
+      res.status(403).json({ error: 'Cannot edit a submitted note' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as NoteBody;
+    const hpi = str(body.hpi);
+    const exam = str(body.exam);
+
+    if (hpi === null || exam === null) {
+      res.status(400).json({ error: 'hpi and exam are required' });
+      return;
+    }
+
     const updated = await prisma.note.update({
       where: { id: noteId },
-      data: { hpi, physicalExam: exam, assessment, treatmentPlan },
+      data: {
+        hpi,
+        physicalExam: exam,
+        assessment: str(body.assessment),
+        treatmentPlan: str(body.treatmentPlan),
+        medications: str(body.medications),
+        allergies: str(body.allergies),
+        familyHistory: str(body.familyHistory),
+        socialHistory: str(body.socialHistory),
+        procedures: str(body.procedures),
+        diagnosis: str(body.diagnosis),
+        labAndDiagnostics: str(body.labAndDiagnostics),
+        codingAndBilling: str(body.codingAndBilling),
+        learningIssues: str(body.learningIssues),
+      },
     });
 
-    // Return the updated note
     res.json({ note: noteToResponse(updated) });
   } catch (error) {
     console.error('PUT /api/notes/:id error:', error);
@@ -226,9 +233,8 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/notes/:id/feedback
-router.post('/:id/feedback', async (req: Request, res: Response) => {
-  // Adds feedback to the logged-in student's note for a given noteId.
+// POST /api/notes/:id/submit — student submits their assignment
+router.post('/:id/submit', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
     if (!studentId) {
@@ -237,33 +243,75 @@ router.post('/:id/feedback', async (req: Request, res: Response) => {
     }
 
     const noteId = paramString(req.params.id);
-    const body = (req.body ?? {}) as { feedback?: unknown };
-    const feedback = typeof body.feedback === 'string' ? body.feedback : null;
+    const existing = await prisma.note.findFirst({ where: { id: noteId, studentId } });
 
-    // If the feedback is missing, return an error
-    if (feedback === null) {
-      res.status(400).json({ error: 'feedback is required' });
-      return;
-    }
-
-    // Get the existing note for the given noteId
-    const existing = await prisma.note.findFirst({
-      where: { id: noteId, studentId },
-    });
-
-    // If the note is not found, return an error
     if (!existing) {
       res.status(404).json({ error: 'Note not found' });
       return;
     }
 
-    // Update the note for the given noteId
+    if (existing.isSubmitted) {
+      res.status(409).json({ error: 'Assignment already submitted' });
+      return;
+    }
+
     const updated = await prisma.note.update({
       where: { id: noteId },
-      data: { feedback },
+      data: { isSubmitted: true, submittedAt: new Date() },
     });
 
-    // Return the updated note
+    res.json({ note: noteToResponse(updated) });
+  } catch (error) {
+    console.error('POST /api/notes/:id/submit error:', error);
+    res.status(500).json({ error: 'Failed to submit assignment' });
+  }
+});
+
+// POST /api/notes/:id/feedback — faculty adds feedback and/or grade
+router.post('/:id/feedback', async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    // Only faculty or admin can give feedback
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
+      res.status(403).json({ error: 'Only faculty or admin can give feedback' });
+      return;
+    }
+
+    const noteId = paramString(req.params.id);
+    const body = (req.body ?? {}) as { feedback?: unknown; grade?: unknown };
+    const feedback = str(body.feedback);
+    const grade =
+      typeof body.grade === 'number' && body.grade >= 0 && body.grade <= 100
+        ? body.grade
+        : typeof body.grade === 'string' && !isNaN(Number(body.grade))
+        ? Number(body.grade)
+        : null;
+
+    if (feedback === null && grade === null) {
+      res.status(400).json({ error: 'feedback or grade is required' });
+      return;
+    }
+
+    const existing = await prisma.note.findUnique({ where: { id: noteId } });
+    if (!existing) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+
+    const updated = await prisma.note.update({
+      where: { id: noteId },
+      data: {
+        ...(feedback !== null && { feedback }),
+        ...(grade !== null && { grade }),
+      },
+    });
+
     res.json({ note: noteToResponse(updated) });
   } catch (error) {
     console.error('POST /api/notes/:id/feedback error:', error);
@@ -271,5 +319,4 @@ router.post('/:id/feedback', async (req: Request, res: Response) => {
   }
 });
 
-// Export the router for use in the index.ts file
 export default router;
