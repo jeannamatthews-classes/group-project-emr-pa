@@ -369,3 +369,18 @@ export async function adminResetUserPassword(
     });
     return parseResponse<{ message: string }>(response);
 }
+
+export async function adminChangeOwnPassword(
+    token: string,
+    payload: { currentPassword: string; newPassword: string }
+): Promise<{ message: string }> {
+    const response = await fetch(`${ADMIN_BASE_URL}/change-password`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse<{ message: string }>(response);
+}

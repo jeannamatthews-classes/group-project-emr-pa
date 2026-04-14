@@ -8,40 +8,56 @@ datasource db {
 
 /// App login accounts (JWT auth).
 model User {
-  id         String     @id @default(uuid())
-  username   String     @unique
-  email      String     @unique
+  id         String   @id @default(uuid())
+  username   String   @unique
+  email      String   @unique
   password   String
-  role       String     @default("unassigned")
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  role       String   @default("unassigned")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   actedLogs  AuditLog[] @relation("AuditActor")
   targetLogs AuditLog[] @relation("AuditTarget")
+  notes      Note[]
 
-  notes Note[]
+  patientsCreatedAsFaculty Patient[]        @relation("PatientsCreatedByFaculty")
+  caseAssignmentsAsStudent CaseAssignment[] @relation("CaseAssignmentStudent")
+  caseAssignmentsAsFaculty CaseAssignment[] @relation("CaseAssignmentFaculty")
 }
 
 /// Patient / chart header (demographics + status).
 model Patient {
-  id         Int      @id @default(autoincrement())
-  /// Optional case title from the student UI (legacy `name` on old Case model).
-  caseTitle  String?
-  /// Patient name (diagram: Name).
-  name       String
-  location   String
-  dob        DateTime @db.Date
-  gender     String
-  codeStatus String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  /// Optional case title shown in the student UI.
+  caseTitle         String?
+  /// Patient full name.
+  name              String
+  location          String
+  dob               DateTime @db.Date
+  gender            String
+  codeStatus        String
+  /// "pbl" or "sim" — set by faculty when creating the case.
+  caseType          String   @default("pbl")
+  /// True when the faculty has attached lab data to this case.
+  hasLabs           Boolean  @default(false)
+  /// URL of the patient profile picture (served from /uploads).
+  profilePictureUrl String?
+  /// Faculty user who created this case.
+  facultyCreatorId  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
+  facultyCreator  User?            @relation("PatientsCreatedByFaculty", fields: [facultyCreatorId], references: [id], onDelete: SetNull)
   chiefComplaints ChiefComplaint[]
   notes           Note[]
+  assignments     CaseAssignment[]
+
+  @@index([facultyCreatorId])
 }
 
-/// One-to-many from Patient: specific complaints.
+/// One-to-many from Patient: specific chief complaints.
 model ChiefComplaint {
-  id            Int     @id @default(autoincrement())
+  id            Int    @id @default(autoincrement())
   patientId     Int
   complaintText String
 
@@ -50,16 +66,36 @@ model ChiefComplaint {
   @@index([patientId])
 }
 
-/// Student narrative per patient (HPI, exam, assessment, treatment plan). Maps the "Text Fields" concept + auth.
+/// Student clinical note per patient — covers all 13 form sections.
 model Note {
-  id             String   @id @default(uuid())
-  patientId      Int
-  studentId      String
-  hpi            String
-  physicalExam   String
-  assessment     String?
-  treatmentPlan  String?
-  feedback       String?
+  id              String    @id @default(uuid())
+  patientId       Int
+  studentId       String
+
+  // Core clinical sections
+  hpi             String    @default("")
+  physicalExam    String    @default("")
+  assessment      String?
+  treatmentPlan   String?
+
+  // Extended sections (all optional so existing rows remain valid)
+  medications     String?
+  allergies       String?
+  familyHistory   String?
+  socialHistory   String?
+  procedures      String?
+  diagnosis       String?
+  labAndDiagnostics String?
+  codingAndBilling  String?
+  learningIssues    String?
+
+  // Submission & grading
+  isSubmitted     Boolean   @default(false)
+  submittedAt     DateTime?
+  grade           Float?
+
+  // Faculty feedback
+  feedback        String?
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -70,7 +106,23 @@ model Note {
   @@unique([studentId, patientId], name: "studentId_patientId")
 }
 
-  
+/// Links a student to a case (patient) — created by faculty.
+model CaseAssignment {
+  id                  String   @id @default(uuid())
+  patientId           Int
+  studentId           String
+  assignedByFacultyId String
+  createdAt           DateTime @default(now())
+
+  patient           Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  student           User    @relation("CaseAssignmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  assignedByFaculty User    @relation("CaseAssignmentFaculty", fields: [assignedByFacultyId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, studentId])
+  @@index([patientId])
+  @@index([studentId])
+  @@index([assignedByFacultyId])
+}
 
 model AuditLog {
   id           String   @id @default(cuid())
