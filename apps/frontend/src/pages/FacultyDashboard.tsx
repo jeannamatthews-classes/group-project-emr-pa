@@ -93,13 +93,40 @@ export default function FacultyDashboard() {
             ))}
           </List>
 
-          {/* ── Cases Section ── */}
-          <Typography
-            variant="overline"
-            sx={{ color: "#1a3a5c", fontWeight: 700, mt: 2, display: "block" }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mt: 2,
+            }}
           >
-            Cases
-          </Typography>
+            <Typography
+              variant="overline"
+              sx={{ color: "#1a3a5c", fontWeight: 700, mt: 2, display: "block" }}
+            >
+              Cases
+            </Typography>
+
+            <Button
+              size="small"
+              variant="contained"
+              sx={{
+                textTransform: "none",
+                fontSize: "0.65rem",
+                py: 0.2,
+                px: 1,
+                minWidth: 0,
+                lineHeight: 1.2,
+                bgcolor: "#1a3a5c",
+                mt: 1.75,
+                "&:hover": { bgcolor: "#14304d" },
+              }}
+              onClick={() => navigate("/caseTemplate/new")}
+            >
+              + New Case
+            </Button>
+          </Box>
 
           <TextField
             fullWidth
@@ -124,7 +151,7 @@ export default function FacultyDashboard() {
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation(); // prevents row click conflict
-                    navigate(`/caseTemplate/${c.id}`);
+                    navigate(`/caseTemplate/${c.id}`, { state: c});
                   }}
                 >
                   Edit
