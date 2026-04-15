@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   AppBar,
@@ -83,14 +83,24 @@ const DEFAULT_OPEN: OpenSections = {
   learn: false,
 };
 
-export default function FacultyCasePage() {
-  const { id } = useParams();
+export default function FacultyCaseTemplatePage() {
+  const { caseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [caseSearch, setCaseSearch] = useState("");
+
+
   const caseFromState = location.state;
-  const caseData = 
-    caseFromState ?? mockCases.find((c) => String(c.id) === String(id)) ?? null;
+
+  const isNew = caseId === "new";
+  const caseData =
+    isNew ? {
+      id: "new",
+      title: "",
+      patient: "",
+    }
+    : mockCases.find((c) => String(c.id) === String(caseId)) || null;
 
   const [activeTab, setActiveTab] = useState(0);
 
@@ -143,26 +153,52 @@ export default function FacultyCasePage() {
     console.log("Assigned students:", assigned);
   };
 
-  console.log("route id:", id);
+  console.log("route id:", caseId);
   console.log("available cases:", mockCases);
 
   if (!caseData) {
     return (
-      <Box sx={{ p: 4 }}>
-        <Typography variant="h5" color="error">
-          Case not found
-        </Typography>
+        <Box sx={{ p: 4 }}>
+          <Typography variant="h5" color="error">
+            Case not found
+          </Typography>
 
-        <Typography sx={{ mt: 1 }}>
-          Route ID: {id}
-        </Typography>
+          <Typography sx={{ mt: 1 }}>
+            Route ID: {caseId}
+          </Typography>
 
-        <Button onClick={() => navigate("/faculty")}>
-          Back to Faculty Dashboard
-        </Button>
-      </Box>
-    );
-  }
+          <Button onClick={() => navigate("/faculty")}>
+            Back to Faculty Dashboard
+          </Button>
+        </Box>
+      );
+    }
+  useEffect(() => {
+    if(!caseData) return;
+
+    setCaseFields({
+      title: caseData.title || "",
+      patient: caseData.patient || "",
+
+      hpi: "",
+      medications: "",
+      allergies: "",
+      medicalHistory: "",
+      familyHistory: "",
+      socialHistory: "",
+      reviewOfSystems: "",
+      physicalExam: "",
+      labAndDiagnostics: "",
+      diagnosisAssessment: "",
+      treatment: "",
+      followUp: "",
+      codingAndBilling: "",
+      decisionMaking: "",
+      learningIssues: "",
+    });
+    
+  }, [caseId]);
+
 
   return (
     /* Top Bar */
@@ -230,7 +266,6 @@ export default function FacultyCasePage() {
                 minWidth: 0,
                 lineHeight: 1.2,
                 bgcolor: "#1a3a5c",
-                mt: 1.75,
                 "&:hover": { bgcolor: "#14304d" },
               }}
               onClick={() => navigate("/caseTemplate/new")}
@@ -239,12 +274,21 @@ export default function FacultyCasePage() {
             </Button>
           </Box>
 
+          <TextField
+              fullWidth
+              size="small"
+              label="Search cases"
+              value={caseSearch}
+              onChange={(e) => setCaseSearch(e.target.value)}
+              sx={{ mb: 1 }}
+            />
+
           <List dense>
             {mockCases.map((c) => (
               <ListItemButton 
                 key={c.id}
-                selected={c.id === caseData.id}
-                onClick={(e) => { navigate(`/caseTemplate/${c.id}`);}}
+                selected={String(c.id) === String(caseData?.id)}
+                onClick={() => { navigate(`/caseTemplate/${c.id}`);}}
               >
                 <ListItemText primary={c.title} secondary={c.patient} />
               </ListItemButton>

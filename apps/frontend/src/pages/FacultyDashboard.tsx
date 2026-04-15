@@ -151,7 +151,7 @@ export default function FacultyDashboard() {
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation(); // prevents row click conflict
-                    navigate(`/caseTemplate/${c.id}`, { state: c});
+                    navigate(`/caseTemplate/${c.id}`);
                   }}
                 >
                   Edit
