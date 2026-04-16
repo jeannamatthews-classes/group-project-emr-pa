@@ -28,7 +28,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/student/:studentId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyStudentPage /></RequireRole>} />
         <Route path="/studentCase/:studentId/:caseId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyStudentCasePage /></RequireRole>} />
         <Route path="/caseTemplate/:caseId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyCaseTemplatePage /></RequireRole>} />
-        <Route path="/student" element={<RequireRole allowed={["student", "admin"]}><StudentPage /></RequireRole>} />
+        <Route path="/student" element={<RequireRole allowed={["student", "admin"]} allowGuestAccess><StudentPage /></RequireRole>} />
         <Route path="/admin/users" element={<RequireRole allowed={["admin"]}><AdminUsersPage /></RequireRole>} />
         <Route path="/admin/logs" element={<RequireRole allowed={["admin"]}><SystemLogsPage /></RequireRole>} />
         <Route path="/admin/settings" element={<RequireRole allowed={["admin"]}><SettingsPage /></RequireRole>} />
