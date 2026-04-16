@@ -1,3 +1,5 @@
+// This file is in charge of the routes for the faculty, so if you are a faculty member, you can use these routes to manage your cases and assignments
+// Essentially, the logic behind all of the routes for each of teh main pages in the faculty dashboard
 import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
@@ -5,16 +7,19 @@ import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
 
 const router = express.Router();
 
+// This function is used to parse the id from the request params
 function paramString(id: string | string[] | undefined): string {
   const raw = Array.isArray(id) ? id[0] : id;
   return typeof raw === 'string' ? raw : String(raw ?? '');
 }
 
+// This function is used to parse the case id from the request params
 function parseCaseId(id: string): number | null {
   const parsed = Number(id);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+// This function is used to convert a patient to a case
 function patientToCase(p: {
   id: number;
   caseTitle: string | null;
@@ -41,6 +46,7 @@ function patientToCase(p: {
   };
 }
 
+// This function is used to load a patient for a faculty member
 async function loadPatientForFaculty(
   patientId: number,
   userId: string,

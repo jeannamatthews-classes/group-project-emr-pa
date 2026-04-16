@@ -7,9 +7,7 @@ import { createAuditLog } from '../services/auditLogService';
 //renamed branch
 const router = express.Router();
 
-/**
- * Code to register a new user
- */
+// Register a new user
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
