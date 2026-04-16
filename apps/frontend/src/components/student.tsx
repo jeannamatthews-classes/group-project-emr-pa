@@ -40,34 +40,34 @@ import { mockCases } from "./Imports";
 // ─── Section config ───────────────────────────────────────────────────────────
 
 type SectionKey =
-  | "hpi" | "med" | "exam" | "aller" | "assess"
-  | "fhist" | "shist" | "proc" | "diag" | "lad"
-  | "treat" | "cab" | "learn";
+  | "hpi" | "med" | "aller" | "pmh" | "fhist"
+  | "shist" | "ros" | "exam" | "lad" | "treat"
+  | "cab" | "mdm" | "learn";
 
 type NoteField = keyof SaveNotePayload;
 
 const SECTIONS: { key: SectionKey; label: string; field: NoteField }[] = [
-  { key: "hpi",   label: "HPI",                field: "hpi" },
-  { key: "med",   label: "Medications",         field: "medications" },
-  { key: "exam",  label: "Physical Exam",        field: "exam" },
-  { key: "aller", label: "Allergies",            field: "allergies" },
-  { key: "assess",label: "Assessment",           field: "assessment" },
-  { key: "fhist", label: "Family History",       field: "familyHistory" },
-  { key: "shist", label: "Social History",       field: "socialHistory" },
-  { key: "proc",  label: "Procedures",           field: "procedures" },
-  { key: "diag",  label: "Diagnosis",            field: "diagnosis" },
-  { key: "lad",   label: "Lab and Diagnostics",  field: "labAndDiagnostics" },
-  { key: "treat", label: "Treatment Plan",       field: "treatmentPlan" },
-  { key: "cab",   label: "Coding and Billing",   field: "codingAndBilling" },
-  { key: "learn", label: "Learning Issues",      field: "learningIssues" },
+  { key: "hpi", label: "HPI", field: "hpi" },
+  { key: "med", label: "Medications", field: "medications" },
+  { key: "aller", label: "Allergies", field: "allergies" },
+  { key: "pmh", label: "Past Medical History", field: "pastMedicalHistory" },
+  { key: "fhist", label: "Family History", field: "familyHistory" },
+  { key: "shist", label: "Social History", field: "socialHistory" },
+  { key: "ros", label: "Review of Systems", field: "reviewofSystems" },
+  { key: "exam", label: "Physical Exam", field: "exam" },
+  { key: "lad", label: "Lab and Diagnostics", field: "labAndDiagnostics" },
+  { key: "treat", label: "Treatment Plan", field: "treatmentPlan" },
+  { key: "cab", label: "Coding and Billing", field: "codingAndBilling" },
+  { key: "mdm", label: "Medical Decision Making", field: "medicalDecisionMaking" },
+  { key: "learn", label: "Learning Issues", field: "learningIssues" },
 ];
 
 type OpenSections = Record<SectionKey, boolean>;
 
 const DEFAULT_OPEN: OpenSections = {
-  hpi: true, med: false, exam: false, aller: false, assess: false,
-  fhist: false, shist: false, proc: false, diag: false, lad: false,
-  treat: false, cab: false, learn: false,
+  hpi: true, med: false, aller: false, pmh: false, fhist: false, shist: false,
+  ros: false, exam: false, lad: false, treat: false, cab: false, mdm: false,
+  learn: false,
 };
 
 type PortalCase = AssignedCase & {
@@ -354,7 +354,7 @@ export default function Student() {
             setGrades(notes);
             setGradesLoaded(true);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   };
@@ -440,9 +440,9 @@ export default function Student() {
   );
 
   const pblCases = sortByLastInteracted(filtered.filter((c) => c.caseType === "pbl" && !c.hasLabs));
-  const pblLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "pbl" && c.hasLabs));
+  const pblLabs = sortByLastInteracted(filtered.filter((c) => c.caseType === "pbl" && c.hasLabs));
   const simCases = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && !c.hasLabs));
-  const simLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && c.hasLabs));
+  const simLabs = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && c.hasLabs));
 
   // ─────────────────────────────────────────────────────────────────────────
   return (

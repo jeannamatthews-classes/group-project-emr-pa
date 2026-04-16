@@ -61,6 +61,9 @@ export type SaveNotePayload = {
   allergies?: string | null;
   familyHistory?: string | null;
   socialHistory?: string | null;
+  pastMedicalHistory?: string | null;
+  reviewofSystems?: string | null;
+  medicalDecisionMaking?: string | null;
   procedures?: string | null;
   diagnosis?: string | null;
   labAndDiagnostics?: string | null;
