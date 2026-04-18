@@ -64,6 +64,9 @@ Useful database commands:
 In `apps/backend`, create a file named `.env`.
 
 Copy the values from `apps/backend/.env.template`.
+```bash
+Copy-Item apps/backend/.env.template apps/backend/.env
+```
 
 Default local values:
 
@@ -148,6 +151,7 @@ For first-time local setup:
 ```bash
 npm install
 npm run db:up
+Copy-Item apps/backend/.env.template apps/backend/.env
 cd apps/backend
 npx prisma generate
 npm run prisma:migrate
