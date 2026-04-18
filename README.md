@@ -28,7 +28,7 @@ If you do not already have the repo:
 ```bash
 git clone https://github.com/jeannamatthews-classes/group-project-emr-pa.git
 cd group-project-emr-pa
-code . (to open the project on VS Code, optional)
+code . (to open the project on VS Code, optional but highly recommended)
 ```
 
 If you already made a local repo and need to connect it:
@@ -87,6 +87,7 @@ Notes:
 From `apps/backend`, run:
 
 ```bash
+cd apps/backend
 npx prisma generate
 npm run prisma:migrate
 ```
@@ -103,6 +104,10 @@ Run them again any time the prisma schema or migrations change.
 Open two terminals from the project root.
 
 In the first terminal:
+
+```bash
+cd ../..
+```
 
 ```bash
 npm run dev:frontend
