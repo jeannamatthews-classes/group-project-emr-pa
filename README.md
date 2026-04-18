@@ -154,6 +154,9 @@ npx prisma generate
 For first-time local setup:
 
 ```bash
+git clone https://github.com/jeannamatthews-classes/group-project-emr-pa.git
+cd group-project-emr-pa
+code . (to open the project on VS Code, optional but highly recommended)
 npm install
 npm run db:up
 Copy-Item apps/backend/.env.template apps/backend/.env
