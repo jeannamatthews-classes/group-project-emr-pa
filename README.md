@@ -1,63 +1,157 @@
 [![Open in Codespaces](https://classroom.github.com/assets/launch-codespace-2972f46106e565e64193e422d61a12cf1da4916b45550586e14ef0a7c637dd04.svg)](https://classroom.github.com/open-in-codespaces?assignment_repo_id=22617955)
 
-# EMR-PA Project Setup
-Frontend: http://localhost:5173<br>
-Backend:  http://localhost:5000<br>
-Postgres: localhost:5432<br>
+# EMR-PA Setup Guide
 
-## Prereqs
-- Node.js, npm, git, docker desktop
-- Docker Desktop should be open before running DB commands
+This guide covers the steps needed to set up and run the project locally.
 
-## Connect to local repo
-Assuming you have already run git init locally:<br>
-- git remote add origin https://github.com/jeannamatthews-classes/group-project-emr-pa.git<br>
-- git pull origin main
-- git checkout main
-- npm install
+## Project URLs
 
-### start up project
-- npm run db:up (starts Postgres container)
-    - When to do this: at the start of each dev session if DB is not already running
-    - Other DB scripts: npm run db:down, npm run db:reset
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5001`
+- Postgres: `localhost:5432`
 
-- Create a .env file in apps/backend and copy values from .env.template
-    - When to do this: first-time setup only (or whenever env values change)
-    - .env should never be pushed to github, always push template only
+## What You Need
 
-- navigate to apps/backend
-- run npx prisma generate
-    - When to do this: first setup and after schema changes
-- run npm run prisma:migrate
-    - When to do this: first setup and whenever new migrations exist
+Install these before you start:
 
-- go back to root (../..)
-- run npm run dev:frontend to start frontend
-- in a second terminal (from root), run npm run dev:backend to start backend
-    - Keep both terminals running while developing
+- Node.js
+- npm
+- Git
+- Docker Desktop
 
+Keep Docker Desktop open while using the local database.
 
-## Start up prisma
-- Make sure you have ran "npm run db:up"
-- Navigate to apps/backend and run npx prisma migrate dev --name init
-    - When to do this: first migration on a fresh local DB, or when creating a new schema migration
-- Then run npx prisma generate
-- Then run npm run prisma:studio (opens Prisma Studio for viewing DB)
-- Quick checks:
-    - Backend health: http://localhost:5000/health
-    - DB connection test: http://localhost:5000/api/db-test
+## 1. Get the Project
 
-### Optional (create a table, migrate and add some info) only for Database team
-- First make sure prisma extension is installed in vscode (optional but helpful)
-- Open schema.prisma in prisma folder
-- create a table eg<br> 
-model firstTable {<br>
-  id    Int    @id @default(autoincrement())<br>
-  email String @unique<br>
-  name  String?<br>
-}<br>
-- run npm run prisma:migrate or npx prisma migrate dev --name any-comment-you-want
-- run npm run prisma:studio again 
-- you should see a table below _prisma_migrations in which you can add new entries etc.
-- check migrations folder, should see SQL code and a migration toml file, commit the folder
-- Learn some prisma before writing raw sql directly (raw sql can be useful but easier to misuse)
+If you do not already have the repo:
+
+```bash
+git clone https://github.com/jeannamatthews-classes/group-project-emr-pa.git
+cd group-project-emr-pa
+```
+
+If you already made a local repo and need to connect it:
+
+```bash
+git remote add origin https://github.com/jeannamatthews-classes/group-project-emr-pa.git
+git pull origin main
+git checkout main
+```
+
+Install project dependencies from the root folder:
+
+```bash
+npm install
+```
+
+## 2. Start the Database
+
+From the root folder, run:
+
+```bash
+npm run db:up
+```
+
+Useful database commands:
+
+- `npm run db:up` starts Postgres
+- `npm run db:down` stops Postgres
+- `npm run db:reset` stops Postgres and clears local database data
+
+## 3. Create the Backend Environment File
+
+In `apps/backend`, create a file named `.env`.
+
+Copy the values from `apps/backend/.env.template`.
+
+Default local values:
+
+```env
+PORT=5001
+CORS_ORIGIN=http://localhost:5173,http://localhost:5174
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/emrpa?schema=public"
+```
+
+Notes:
+
+- Use `5001` for the backend unless you have a reason to change it.
+- Do not commit `.env` to Git.
+- If you change the frontend port, update `CORS_ORIGIN`.
+
+## 4. Set Up Prisma
+
+From `apps/backend`, run:
+
+```bash
+npx prisma generate
+npm run prisma:migrate
+```
+
+What these do:
+
+- `npx prisma generate` builds the prisma client
+- `npm run prisma:migrate` applies database migrations to your local database
+
+Run them again any time the prisma schema or migrations change.
+
+## 5. Start the App
+
+Open two terminals from the project root.
+
+In the first terminal:
+
+```bash
+npm run dev:frontend
+```
+
+In the second terminal:
+
+```bash
+npm run dev:backend
+```
+
+Keep both running while you work.
+
+## 6. Quick Checks
+
+Use these links to confirm everything is working:
+
+- Frontend: `http://localhost:5173`
+- Backend health check: `http://localhost:5001/health`
+- Database test: `http://localhost:5001/api/db-test`
+
+## Prisma Tools
+
+If you want to see the database in prisma Studio, run this from `apps/backend`:
+
+```bash
+npm run prisma:studio
+```
+
+If you are creating a new schema change, use:
+
+```bash
+npx prisma migrate dev --name your-change-name
+```
+
+Then run:
+
+```bash
+npx prisma generate
+```
+
+## Summary of Setup Commands
+
+For first-time local setup:
+
+```bash
+npm install
+npm run db:up
+cd apps/backend
+npx prisma generate
+npm run prisma:migrate
+cd ../..
+npm run dev:frontend
+open a new terminal
+npm run dev:backend
+```
