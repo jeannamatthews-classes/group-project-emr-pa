@@ -28,7 +28,7 @@ If you do not already have the repo:
 ```bash
 git clone https://github.com/jeannamatthews-classes/group-project-emr-pa.git
 cd group-project-emr-pa
-code . (to open the project on VS Code)
+code . (to open the project on VS Code, optional)
 ```
 
 If you already made a local repo and need to connect it:
