@@ -5,8 +5,12 @@ import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
 
 const router = express.Router();
 
+// This function parses a positive integer from a string or number, this is needed to avoid type errors when
+// parsing the patientId and studentId from the request body
 function parsePositiveInt(value: unknown): number | null {
+  // If the value is a number and it is an integer and it is greater than 0, return the value
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+  // If the value is a string, parse it as a number and check if it is an integer and greater than 0, return the value
   if (typeof value === 'string') {
     const parsed = Number(value);
     if (Number.isInteger(parsed) && parsed > 0) return parsed;
@@ -14,11 +18,13 @@ function parsePositiveInt(value: unknown): number | null {
   return null;
 }
 
+// This one checks to see if the user has permission to manage the patient
 async function assertCanManagePatient(
   patientId: number,
   userId: string,
   role: string | undefined
 ) {
+  // Find the patient by id
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   if (!patient) return { ok: false as const, reason: 'not_found' as const };
   if (role === 'admin') return { ok: true as const, patient };
@@ -29,8 +35,9 @@ async function assertCanManagePatient(
 router.use(authMiddleware);
 router.use(facultyOrAdminMiddleware);
 
-// GET /api/assignments — list assignments
+// This route is used to get all the assignments for a patient, if the user is an admin, they can get all the assignments for all patients
 router.get('/', async (req: Request, res: Response) => {
+  // Tries to get the patientId from the request query
   try {
     const patientIdParam = req.query.patientId;
     const patientFilter =
@@ -38,11 +45,13 @@ router.get('/', async (req: Request, res: Response) => {
         ? null
         : parsePositiveInt(Array.isArray(patientIdParam) ? patientIdParam[0] : patientIdParam);
 
+    // If the patientId is invalid, return an error
     if (patientIdParam !== undefined && patientIdParam !== '' && patientFilter === null) {
       res.status(400).json({ error: 'Invalid patientId' });
       return;
     }
 
+    // Allows the admin to get all the assignments for all patients
     if (req.userRole === 'admin') {
       const assignments = await prisma.caseAssignment.findMany({
         where: patientFilter ? { patientId: patientFilter } : undefined,
@@ -57,6 +66,7 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
+    // Allows the faculty to get all the assignments for their cases
     const facultyId = req.userId as string;
     const assignments = await prisma.caseAssignment.findMany({
       where: {
@@ -78,20 +88,24 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/assignments — assign student to case
+// This route is used to create a new assignment for a patient, it is only accessible to faculty and admins
 router.post('/', async (req: Request, res: Response) => {
   try {
+    // attempts to get the patientId and studentId from the request body
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const patientId = parsePositiveInt((body as { patientId?: unknown }).patientId);
     const studentId = (body as { studentId?: unknown }).studentId;
 
+    // If the patientId or studentId is invalid, return an error
     if (patientId === null || typeof studentId !== 'string' || !studentId.trim()) {
       res.status(400).json({ error: 'patientId and studentId are required' });
       return;
     }
 
+    // Checks to see if the user has permission to manage the patient
     const access = await assertCanManagePatient(patientId, req.userId!, req.userRole);
     if (!access.ok) {
+      // If the patient is not found, return an error
       if (access.reason === 'not_found') {
         res.status(404).json({ error: 'Case not found' });
         return;
@@ -100,16 +114,19 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    // Finds the student by id
     const student = await prisma.user.findUnique({
       where: { id: studentId.trim() },
       select: { id: true, role: true },
     });
 
+    // If the student is not found or is not a student, return an error
     if (!student || student.role !== 'student') {
       res.status(400).json({ error: 'Target user must be a student' });
       return;
     }
 
+    // Creates the assignment
     const assignment = await prisma.caseAssignment.create({
       data: {
         patientId,
@@ -123,6 +140,7 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
 
+    // Returns the assignment
     res.status(201).json({ assignment });
   } catch (error: unknown) {
     if (

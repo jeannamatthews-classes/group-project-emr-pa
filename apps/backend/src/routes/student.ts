@@ -32,28 +32,6 @@ router.get('/cases', async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Demo fallback: if the student has no assignments yet, show all cases
-    // so testers can explore the UI without needing a faculty account
-    if (assignments.length === 0) {
-      const allPatients = await prisma.patient.findMany({ orderBy: { id: 'asc' } });
-      const syntheticAssignments = allPatients.map((p) => ({
-        id: `demo-${p.id}`,
-        patientId: p.id,
-        studentId,
-        createdAt: p.createdAt.toISOString(),
-        patient: {
-          id: p.id,
-          caseTitle: p.caseTitle,
-          name: p.name,
-          caseType: p.caseType,
-          hasLabs: p.hasLabs,
-          profilePictureUrl: p.profilePictureUrl,
-        },
-      }));
-      res.json({ assignments: syntheticAssignments });
-      return;
-    }
-
     res.json({ assignments });
   } catch (error) {
     console.error('GET /api/student/cases error:', error);

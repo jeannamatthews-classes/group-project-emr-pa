@@ -13,7 +13,7 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const { loading, error, handleRegister, clearError } = useRegister({
-    redirectTo: "/student",
+    redirectTo: "/portal",
   });
 
   const onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]> = async (event) => {

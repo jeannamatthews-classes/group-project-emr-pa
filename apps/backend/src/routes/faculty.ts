@@ -15,10 +15,66 @@ function parseCaseId(id: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function patientToCase(p: {
+  id: number;
+  caseTitle: string | null;
+  name: string;
+  location: string;
+  dob: Date;
+  gender: string;
+  codeStatus: string;
+  caseType: string;
+  hasLabs: boolean;
+  profilePictureUrl: string | null;
+  facultyCreatorId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: p.id,
+    name: p.caseTitle?.trim() ? p.caseTitle : p.name,
+    patient: p.name,
+    location: p.location,
+    dob: p.dob,
+    gender: p.gender,
+    codeStatus: p.codeStatus,
+    caseType: p.caseType,
+    hasLabs: p.hasLabs,
+    profilePictureUrl: p.profilePictureUrl,
+    facultyCreatorId: p.facultyCreatorId,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  };
+}
+
+async function loadPatientForFaculty(
+  patientId: number,
+  userId: string,
+  role: string | undefined
+) {
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    include: {
+      chiefComplaints: { orderBy: { id: 'asc' } },
+      assignments: {
+        include: {
+          student: { select: { id: true, username: true, email: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+
+  if (!patient) return { error: 'not_found' as const };
+  if (role === 'admin') return { patient };
+  if (patient.facultyCreatorId === userId) return { patient };
+  return { error: 'forbidden' as const };
+}
+
 router.use(authMiddleware);
 router.use(facultyOrAdminMiddleware);
 
-// GET /api/faculty/students — list all student accounts
+/** List student accounts (for assignment pickers). */
 router.get('/students', async (_req: Request, res: Response) => {
   try {
     const students = await prisma.user.findMany({
@@ -29,66 +85,48 @@ router.get('/students', async (_req: Request, res: Response) => {
     res.json({ students });
   } catch (error) {
     console.error('GET /api/faculty/students error:', error);
-    res.status(500).json({ error: 'Failed to fetch students' });
+    res.status(500).json({ error: 'Failed to list students' });
   }
 });
 
-// GET /api/faculty/cases — cases created by this faculty (or all for admin)
+/** Cases created by this faculty user (admins see all). */
 router.get('/cases', async (req: Request, res: Response) => {
   try {
     const where =
-      req.userRole === 'admin' ? {} : { facultyCreatorId: req.userId };
+      req.userRole === 'admin'
+        ? {}
+        : { facultyCreatorId: req.userId as string };
 
-    const cases = await prisma.patient.findMany({
+    const patients = await prisma.patient.findMany({
       where,
-      include: { assignments: { include: { student: { select: { id: true, username: true, email: true } } } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json({ cases });
-  } catch (error) {
-    console.error('GET /api/faculty/cases error:', error);
-    res.status(500).json({ error: 'Failed to fetch cases' });
-  }
-});
-
-// GET /api/faculty/cases/:id — specific case with assignments
-router.get('/cases/:id', async (req: Request, res: Response) => {
-  try {
-    const caseId = parseCaseId(paramString(req.params.id));
-    if (!caseId) {
-      res.status(400).json({ error: 'Invalid case id' });
-      return;
-    }
-
-    const patient = await prisma.patient.findUnique({
-      where: { id: caseId },
+      orderBy: { id: 'asc' },
       include: {
         assignments: {
-          include: { student: { select: { id: true, username: true, email: true } } },
+          include: {
+            student: { select: { id: true, username: true, email: true } },
+          },
         },
       },
     });
 
-    if (!patient) {
-      res.status(404).json({ error: 'Case not found' });
-      return;
-    }
-
-    // Faculty can only view their own cases (admin sees all)
-    if (req.userRole !== 'admin' && patient.facultyCreatorId !== req.userId) {
-      res.status(403).json({ error: 'Access denied' });
-      return;
-    }
-
-    res.json({ case: patient });
+    res.json({
+      cases: patients.map((p) => ({
+        ...patientToCase(p),
+        assignments: p.assignments.map((a) => ({
+          id: a.id,
+          studentId: a.studentId,
+          student: a.student,
+          createdAt: a.createdAt,
+        })),
+      })),
+    });
   } catch (error) {
-    console.error('GET /api/faculty/cases/:id error:', error);
-    res.status(500).json({ error: 'Failed to fetch case' });
+    console.error('GET /api/faculty/cases error:', error);
+    res.status(500).json({ error: 'Failed to fetch faculty cases' });
   }
 });
 
-// GET /api/faculty/cases/:id/notes — student notes for a case
+/** Notes for a case with student identity (faculty-owned case or admin). */
 router.get('/cases/:id/notes', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.id));
@@ -97,27 +135,94 @@ router.get('/cases/:id/notes', async (req: Request, res: Response) => {
       return;
     }
 
-    const patient = await prisma.patient.findUnique({ where: { id: caseId } });
-    if (!patient) {
-      res.status(404).json({ error: 'Case not found' });
-      return;
-    }
-
-    if (req.userRole !== 'admin' && patient.facultyCreatorId !== req.userId) {
-      res.status(403).json({ error: 'Access denied' });
+    const access = await loadPatientForFaculty(caseId, req.userId!, req.userRole);
+    if ('error' in access) {
+      if (access.error === 'not_found') {
+        res.status(404).json({ error: 'Case not found' });
+        return;
+      }
+      res.status(403).json({ error: 'You do not have access to this case' });
       return;
     }
 
     const notes = await prisma.note.findMany({
       where: { patientId: caseId },
-      include: { student: { select: { id: true, username: true, email: true } } },
       orderBy: { updatedAt: 'desc' },
+      include: {
+        student: { select: { id: true, username: true, email: true } },
+      },
     });
 
-    res.json({ notes });
+    res.json({
+      notes: notes.map((n) => ({
+        id: n.id,
+        patientId: n.patientId,
+        caseId: n.patientId,
+        studentId: n.studentId,
+        student: n.student,
+        hpi: n.hpi,
+        medications: n.medications,
+        allergies: n.allergies,
+        familyHistory: n.familyHistory,
+        socialHistory: n.socialHistory,
+        physicalExam: n.physicalExam,
+        procedures: n.procedures,
+        diagnosis: n.diagnosis,
+        labAndDiagnostics: n.labAndDiagnostics,
+        assessment: n.assessment,
+        codingAndBilling: n.codingAndBilling,
+        learningIssues: n.learningIssues,
+        treatmentPlan: n.treatmentPlan,
+        isSubmitted: n.isSubmitted,
+        submittedAt: n.submittedAt,
+        grade: n.grade,
+        feedback: n.feedback,
+        createdAt: n.createdAt,
+        updatedAt: n.updatedAt,
+      })),
+    });
   } catch (error) {
     console.error('GET /api/faculty/cases/:id/notes error:', error);
-    res.status(500).json({ error: 'Failed to fetch notes' });
+    res.status(500).json({ error: 'Failed to fetch case notes' });
+  }
+});
+
+/** Case detail including chief complaints and current assignments. */
+router.get('/cases/:id', async (req: Request, res: Response) => {
+  try {
+    const caseId = parseCaseId(paramString(req.params.id));
+    if (!caseId) {
+      res.status(400).json({ error: 'Invalid case id' });
+      return;
+    }
+
+    const access = await loadPatientForFaculty(caseId, req.userId!, req.userRole);
+    if ('error' in access) {
+      if (access.error === 'not_found') {
+        res.status(404).json({ error: 'Case not found' });
+        return;
+      }
+      res.status(403).json({ error: 'You do not have access to this case' });
+      return;
+    }
+
+    const p = access.patient;
+    res.json({
+      case: {
+        ...patientToCase(p),
+        chiefComplaints: p.chiefComplaints,
+        assignments: p.assignments.map((a) => ({
+          id: a.id,
+          studentId: a.studentId,
+          student: a.student,
+          assignedByFacultyId: a.assignedByFacultyId,
+          createdAt: a.createdAt,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('GET /api/faculty/cases/:id error:', error);
+    res.status(500).json({ error: 'Failed to fetch case' });
   }
 });
 

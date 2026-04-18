@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../db';
 
 /**
- * Requires the authenticated user to have role "faculty" or "admin".
- * Also populates req.userRole for downstream handlers.
+ * Requires an authenticated user whose role is `faculty` or `admin`.
+ * Sets `req.userRole` for downstream handlers.
  */
 export const facultyOrAdminMiddleware = async (
   req: Request,
