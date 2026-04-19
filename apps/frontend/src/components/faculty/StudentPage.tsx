@@ -1,10 +1,30 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import type { Case } from "../Imports";
 import { mockStudents, mockCases, mockAssignedCases, panelStyle } from "../Imports";
-import { Box, Button, List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Drawer,
+  TextField,
+  Button,
+  Tabs,
+  Tab,
+  List,
+  ListItemButton,
+  ListItemText,
+  Checkbox,
+  Avatar,
+  Collapse,
+  Chip,
+} from "@mui/material";
 import { getStoredToken } from "../../services/authApi";
 import { facultyAssignCase, facultyListStudents, type FacultyStudent } from "../../services/facultyApi";
+import LogoutIcon from "@mui/icons-material/Logout";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 export default function StudentPage() {
     const { studentId } = useParams<{ studentId: string }>();
@@ -13,6 +33,13 @@ export default function StudentPage() {
     const [assigningCaseId, setAssigningCaseId] = useState<number | null>(null);
     const [assignMessage, setAssignMessage] = useState<string | null>(null);
     const [assignError, setAssignError] = useState<string | null>(null);
+    const [caseSearch, setCaseSearch] = useState("");
+    const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null);
+
+    const [studentSearch, setStudentSearch] = useState("");
+    const filteredStudents = mockStudents.filter((s) =>
+        s.name.toLowerCase().includes(studentSearch.toLowerCase())
+    );
 
     useEffect(() => {
         let active = true;
@@ -50,11 +77,15 @@ export default function StudentPage() {
         : (Array.from(String(student.id)).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % mockStudents.length) + 1;
 
     const assigned = mockAssignedCases.filter(ac => ac.studentId === mappedMockStudentId);
-    const casesForStudent = assigned 
-        .map(ac => mockCases.find(c => c.id === ac.caseId))
+    const studentCases = mockAssignedCases
+        .filter((ac) => ac.studentId === mappedMockStudentId)
+        .map((ac) => mockCases.find((c) => c.id === ac.caseId))
         .filter((c): c is Case => Boolean(c));
 
     const selectedDbStudent = students.find((s) => s.id === String(student.id));
+
+    const selectedCase =
+        studentCases.find((c) => c.id === selectedCaseId) || null;
 
     async function handleAssignCase(caseId: number) {
         if (!selectedDbStudent) {
@@ -87,92 +118,134 @@ export default function StudentPage() {
     }
 
     return (
-        <Box 
-            sx={{ 
-                bgcolor: "#f4f7fb",
-                height: "100vh",
-                display: "flex",
-                flexDirection: "column"
-            }}
+        <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f4f7fb" }}>
+            <AppBar
+                position="fixed"
+                sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: "#1a3a5c" }}
             >
-            <Box sx={{ px: 4, pt: 4 }}>
-                <Button onClick={() => navigate("/faculty")} sx={{ mb: 2}}>
+                <Toolbar>
+                <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
+                    Student Manager
+                </Typography>
+
+                <Button color="inherit" sx={{ textTransform: "none", fontWeight: 600 }} onClick={() => navigate("/faculty")}>
                     Back
                 </Button>
-                <Button onClick={() => navigate("/portal")} sx={{ mb: 2, ml: 1 }}>
-                    Back to Portal
+            
+                <Button
+                    color="inherit"
+                    startIcon={<LogoutIcon />}
+                    onClick={() => navigate("/login")}
+                    sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                    Exit
                 </Button>
+                </Toolbar>
+            </AppBar>
 
-                <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
-                    {student.name}
-                </Typography>
-                {assignMessage ? <Typography color="success.main">{assignMessage}</Typography> : null}
-                {assignError ? <Typography color="error">{assignError}</Typography> : null}
-            </Box>
-
-            <Box 
+            <Drawer
+                variant="permanent"
+                anchor="left"
                 sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 3,
-                    flex: 1,
-                    px: 4,
-                    pb: 4,
-                    width: "100%",
+                    "& .MuiDrawer-paper": {
+                    width: 300,
+                    mt: "64px",
+                    bgcolor: "#ffffff",
+                    borderRight: "1px solid #dbe4f0",
+                    },
                 }}
             >
-                <Box sx={panelStyle}>
-                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                        Available Cases
-                    </Typography>
-
-                    <List>
-                        {casesForStudent.map(c => (
-                            <ListItemButton
-                            key={c.id}
-                            onClick={() => navigate(`/studentCase/${student.id}/${c.id}`)}
-                            sx={{ borderRadius: 2, mb: 1 }}
-                            >
-                            <Box sx={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-                                <ListItemText
-                                    primary={c.title}
-                                    secondary={c.patient}
-                                />
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        void handleAssignCase(c.id);
-                                    }}
-                                    disabled={assigningCaseId === c.id}
-                                >
-                                    {assigningCaseId === c.id ? "Assigning..." : "Assign"}
-                                </Button>
-                            </Box>
-                            </ListItemButton>
-                        ))
-                        }
-                    </List>
-                </Box>
-
-                <Box sx={panelStyle}>
-                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                        Students
-                    </Typography>
-
-                    <List>
-                        {displayStudents.map(s => (
-                        <ListItemButton
-                            key={s.id}
-                            selected={String(s.id) === String(student.id)}
-                            onClick={() => navigate(`/student/${s.id}`)}
+                <Box sx={{ p: 2 }}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            
+                        }}
+                    >
+                        <Typography
+                            variant="overline"
+                            sx={{ color: "#1a3a5c", fontWeight: 700 }}
                         >
-                            <ListItemText primary={s.name}/>
-                        </ListItemButton>
+                            Students
+                        </Typography>
+        
+                    </Box>
+            
+                    <TextField
+                        fullWidth
+                        size="small"
+                        label="Search students"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        sx={{ mb: 1 }}
+                    />
+            
+                    <List dense>
+                        {filteredStudents.map((student) => (
+                            <ListItemButton
+                                key={student.id}
+                                onClick={() => navigate(`/student/${student.id}`)}
+                                sx={{ borderRadius: 1.5, mb: 0.5 }}
+                            >
+                                <ListItemText primary={student.name} />
+                            </ListItemButton>
                         ))}
                     </List>
                 </Box>
+
+                <Box sx={{ p: 2 }}>
+                    
+                    <Typography
+                        variant="overline"
+                        sx={{ color: "#1a3a5c", fontWeight: 700 }}
+                    >
+                        {student.name}'s Assigned Cases
+                    </Typography>
+
+                    <TextField
+                        fullWidth
+                        size="small"
+                        label="Search cases"
+                        value={caseSearch}
+                        onChange={(e) => setCaseSearch(e.target.value)}
+                        sx={{ mb: 1 }}
+                    />
+                    <List dense>
+                        {studentCases.map((c) => (
+                        <ListItemButton
+                            key={c.id}
+                            onClick={() => setSelectedCaseId(c.id)}                        
+                        >
+                            <ListItemText primary={c.title} secondary={c.patient} />
+                        </ListItemButton>
+                        ))}
+                    </List>
+                        
+                </Box>
+            </Drawer>
+
+            <Box sx={{ flex: 1, ml: "300px", mt: "64px", p: 4 }}>
+                <Typography variant="h4" fontWeight={700} gutterBottom>
+                    {student.name}
+                </Typography>
+                {!selectedCase ? (
+                    <Typography color="text.secondary">
+                        Select a case from the sidebar to view submissions.
+                    </Typography>
+                ) : (
+                    <Box>
+                        <Typography variant="h5" fontWeight={700} gutterBottom>
+                            Patient: {selectedCase.patient}
+                        </Typography>
+
+                        <Typography color="text.secondary" sx={{ mb: 3 }}>
+                            Chief Complaint: {selectedCase.title}
+                        </Typography>
+
+                    </Box>
+                )}
             </Box>
         </Box>
     );   
