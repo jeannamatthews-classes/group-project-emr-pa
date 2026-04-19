@@ -239,6 +239,7 @@ export default function Student() {
   // ── cases & selection
   const [cases, setCases] = useState<PortalCase[]>(EXAMPLE_CASES);
   const [selectedCase, setSelectedCase] = useState<PortalCase | null>(null);
+  const [examSelected, setExamSelected] = useState(false);
   const [, setInteractionVersion] = useState(0);
 
   // ── current note form
@@ -319,6 +320,7 @@ export default function Student() {
     touchCase(c.id);
     setInteractionVersion((v) => v + 1);
     setSelectedCase(c);
+    setExamSelected(false);
     setActiveTab(0);
     setNoteFields({ caseId: c.id, hpi: "", exam: "" });
 
@@ -549,12 +551,43 @@ export default function Student() {
               No cases assigned yet.
             </Typography>
           )}
+
+          {/* Exams section */}
+          <Box sx={{ mt: 2, borderTop: "1px solid #dbe4f0", pt: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{ px: 1, color: "#1a3a5c", fontWeight: 700, letterSpacing: 1 }}
+            >
+              Exams
+            </Typography>
+            <List disablePadding sx={{ mt: 0.5 }}>
+              <ListItemButton
+                selected={examSelected}
+                onClick={() => { setExamSelected(true); setSelectedCase(null); }}
+                sx={{ borderRadius: 1.5 }}
+              >
+                <ListItemText
+                  primary="My Exams"
+                  slotProps={{ primary: { variant: "body2" } }}
+                />
+              </ListItemButton>
+            </List>
+          </Box>
         </Box>
       </Drawer>
 
       {/* ── Main Content ── */}
       <Box sx={{ flex: 1, ml: "280px", p: 4, mt: "64px" }}>
-        {!selectedCase ? (
+        {examSelected ? (
+          <Box sx={{ textAlign: "center", mt: 8 }}>
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              No Exam Available
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              You will be notified when you receive an exam.
+            </Typography>
+          </Box>
+        ) : !selectedCase ? (
           <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h5" color="text.secondary" gutterBottom>
               Welcome to the EMR Student Portal
