@@ -34,7 +34,7 @@ import {
 } from "../services/casesApi";
 import type { AssignedCase, NoteData, GradeNote, SaveNotePayload } from "../services/casesApi";
 import { touchCase, sortByLastInteracted } from "../services/caseStorage";
-import { logout, getStoredToken } from "../services/authApi";
+import { isGuestModeEnabled, logout, getStoredToken } from "../services/authApi";
 import { mockCases } from "./Imports";
 
 // ─── Section config ───────────────────────────────────────────────────────────
@@ -235,6 +235,7 @@ function CaseGroup({
 
 export default function Student() {
   const navigate = useNavigate();
+  const isGuestUser = !getStoredToken();
 
   // ── cases & selection
   const [cases, setCases] = useState<PortalCase[]>(EXAMPLE_CASES);
@@ -282,7 +283,7 @@ export default function Student() {
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
-      navigate("/login");
+      setAssignmentNotice("Guest view enabled. Example cases are available in read-only mode.");
       return;
     }
 
@@ -307,7 +308,7 @@ export default function Student() {
         // Only redirect to login on authentication errors
         const msg = err instanceof Error ? err.message.toLowerCase() : "";
         if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("not authenticated")) {
-          navigate("/login");
+          setAssignmentNotice("Guest view enabled. Example cases are available in read-only mode.");
         } else {
           // Non-auth error (network, server down, etc.) — stay on page, show empty state
           setAssignmentNotice("Could not load cases. Please check your connection.");
@@ -370,7 +371,16 @@ export default function Student() {
   // ─── Save notes ──────────────────────────────────────────────────────────
   const handleSave = async () => {
     const token = getStoredToken();
-    if (!token || !selectedCase) return;
+    if (!selectedCase) return;
+
+    if (!token) {
+      setSaveSnack({
+        open: true,
+        message: "Guest view is read-only. Sign in to save notes.",
+        severity: "info",
+      });
+      return;
+    }
 
     if (selectedCase.isExample) {
       setSaveSnack({ open: true, message: "Example cases are read-only samples.", severity: "info" });
@@ -393,7 +403,16 @@ export default function Student() {
   // ─── Submit assignment ───────────────────────────────────────────────────
   const handleSubmit = async () => {
     const token = getStoredToken();
-    if (!token || !noteFields.id) return;
+    if (!token) {
+      setSaveSnack({
+        open: true,
+        message: "Guest view is read-only. Sign in to submit assignments.",
+        severity: "info",
+      });
+      return;
+    }
+
+    if (!noteFields.id) return;
 
     if (selectedCase?.isExample) {
       setSaveSnack({ open: true, message: "Example cases cannot be submitted.", severity: "error" });
@@ -421,7 +440,7 @@ export default function Student() {
   // ─── Logout ──────────────────────────────────────────────────────────────
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate(isGuestModeEnabled() ? "/portal" : "/login");
   };
 
   // ─── Derived sidebar groups ───────────────────────────────────────────────
@@ -448,10 +467,10 @@ export default function Student() {
           </Typography>
           <Button
             color="inherit"
-            onClick={() => navigate("/portal")}
+            onClick={() => navigate(isGuestModeEnabled() ? "/portal" : "/login")}
             sx={{ mr: 1 }}
           >
-            Back to Portal
+            {isGuestModeEnabled() ? "Back to Portal" : "Back to Login"}
           </Button>
           <Button
             color="inherit"
@@ -708,7 +727,7 @@ export default function Student() {
                   <Button
                     variant="contained"
                     onClick={handleSave}
-                    disabled={!!noteFields.isSubmitted}
+                    disabled={isGuestUser || !!noteFields.isSubmitted}
                     sx={{ bgcolor: "#1a3a5c", "&:hover": { bgcolor: "#14304d" } }}
                   >
                     Save Notes
@@ -716,7 +735,7 @@ export default function Student() {
                   <Button
                     variant="outlined"
                     onClick={handleSubmit}
-                    disabled={!noteFields.id || !!noteFields.isSubmitted}
+                    disabled={isGuestUser || !noteFields.id || !!noteFields.isSubmitted}
                     color="success"
                   >
                     Submit Assignment

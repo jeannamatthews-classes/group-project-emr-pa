@@ -5,13 +5,19 @@ import { getMe, getStoredToken, isGuestModeEnabled } from "../services/authApi";
 interface RequireRoleProps {
   allowed: string[];
   children: React.ReactNode;
+  allowGuestAccess?: boolean;
 }
 
-export default function RequireRole({ allowed, children }: RequireRoleProps) {
+export default function RequireRole({
+  allowed,
+  children,
+  allowGuestAccess = false,
+}: RequireRoleProps) {
   const navigate = useNavigate();
   const [ok, setOk] = useState(false);
   const canUseGuestRoute =
-    isGuestModeEnabled() && (allowed.includes("faculty") || allowed.includes("student"));
+    allowGuestAccess ||
+    (isGuestModeEnabled() && (allowed.includes("faculty") || allowed.includes("student")));
 
   useEffect(() => {
     const check = async () => {
