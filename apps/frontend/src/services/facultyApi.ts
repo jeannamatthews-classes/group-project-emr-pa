@@ -137,6 +137,46 @@ export async function facultyListCaseNotes(token: string, caseId: number): Promi
   return parseResponse<{ notes: FacultyCaseNote[] }>(response);
 }
 
+export async function facultyCreateCase(
+  token: string,
+  payload: {
+    name: string;
+    caseTitle?: string;
+    location?: string;
+    dob?: string;
+    gender?: string;
+    codeStatus?: string;
+    caseType?: string;
+  }
+): Promise<{ case: { id: number } }> {
+  const apiRoot = resolveApiRoot(AUTH_BASE_URL);
+  const response = await fetch(`${apiRoot}/cases`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<{ case: { id: number } }>(response);
+}
+
+export async function facultyUploadCasePicture(
+  token: string,
+  caseId: number,
+  file: File
+): Promise<{ profilePictureUrl: string }> {
+  const apiRoot = resolveApiRoot(AUTH_BASE_URL);
+  const formData = new FormData();
+  formData.append("picture", file);
+  const response = await fetch(`${apiRoot}/cases/${caseId}/picture`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  return parseResponse<{ profilePictureUrl: string }>(response);
+}
+
 export async function facultyAssignCase(
   token: string,
   payload: { patientId: number; studentId: string }
