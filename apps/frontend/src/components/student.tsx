@@ -11,6 +11,7 @@ import {
   CardContent,
   Chip,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
@@ -24,6 +25,7 @@ import {
 import LogoutIcon from "@mui/icons-material/Logout";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import MenuIcon from "@mui/icons-material/Menu";
 
 import {
   getStudentCases,
@@ -252,6 +254,9 @@ export default function Student() {
   const [grades, setGrades] = useState<GradeNote[]>([]);
   const [gradesLoaded, setGradesLoaded] = useState(false);
 
+  // ── sidebar visibility toggle
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+
   // ── sidebar collapse state
   const [sidebarOpen, setSidebarOpen] = useState({
     pblCase: true,
@@ -462,6 +467,13 @@ export default function Student() {
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: "#1a3a5c" }}
       >
         <Toolbar>
+          <IconButton
+            color="inherit"
+            onClick={() => setSidebarVisible((v) => !v)}
+            sx={{ mr: 1 }}
+          >
+            <MenuIcon />
+          </IconButton>
           <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
             EMR Student Portal
           </Typography>
@@ -485,8 +497,9 @@ export default function Student() {
 
       {/* ── Left Sidebar ── */}
       <Drawer
-        variant="permanent"
+        variant="persistent"
         anchor="left"
+        open={sidebarVisible}
         slotProps={{
           paper: {
             sx: {
@@ -494,7 +507,7 @@ export default function Student() {
               boxSizing: "border-box",
               borderRight: "1px solid #dbe4f0",
               bgcolor: "#ffffff",
-              mt: "64px", // offset for AppBar
+              mt: "64px",
             },
           },
         }}
@@ -596,7 +609,7 @@ export default function Student() {
       </Drawer>
 
       {/* ── Main Content ── */}
-      <Box sx={{ flex: 1, ml: "280px", p: 4, mt: "64px" }}>
+      <Box sx={{ flex: 1, ml: sidebarVisible ? "280px" : 0, p: 4, mt: "64px", transition: "margin 0.2s ease" }}>
         {examSelected ? (
           <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h5" color="text.secondary" gutterBottom>
