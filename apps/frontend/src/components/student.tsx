@@ -75,7 +75,19 @@ const DEFAULT_OPEN: OpenSections = {
 type PortalCase = AssignedCase & {
   isExample?: boolean;
   mockCaseId?: number;
+  dob?: string;
+  gender?: string;
+  codeStatus?: string;
+  location?: string;
 };
+
+const MOCK_PATIENT_DETAILS: { dob: string; gender: string; codeStatus: string; location: string }[] = [
+  { dob: "1958-03-14", gender: "Male",   codeStatus: "Full Code", location: "ICU Room 4B" },
+  { dob: "1972-11-02", gender: "Female", codeStatus: "DNR",       location: "Med-Surg Floor 2" },
+  { dob: "1985-07-29", gender: "Female", codeStatus: "Full Code", location: "ED Bay 7" },
+  { dob: "1943-01-18", gender: "Male",   codeStatus: "DNR-DNI",   location: "Step-Down Unit 3A" },
+  { dob: "2001-05-05", gender: "Other",  codeStatus: "Full Code", location: "Outpatient Clinic" },
+];
 
 const EXAMPLE_CASES: PortalCase[] = mockCases.map((c, index) => ({
   id: -(index + 1),
@@ -86,6 +98,7 @@ const EXAMPLE_CASES: PortalCase[] = mockCases.map((c, index) => ({
   profilePictureUrl: null,
   isExample: true,
   mockCaseId: c.id,
+  ...MOCK_PATIENT_DETAILS[index % MOCK_PATIENT_DETAILS.length],
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -670,6 +683,43 @@ export default function Student() {
                 </Box>
               </Box>
             </Box>
+
+            {/* ── Patient Info Card ── */}
+            <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, bgcolor: "#f8fafc" }}>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+                  <Avatar
+                    src={
+                      selectedCase.profilePictureUrl
+                        ? `http://localhost:5001${selectedCase.profilePictureUrl}`
+                        : undefined
+                    }
+                    sx={{ width: 88, height: 88, fontSize: 30, bgcolor: "#1a3a5c", border: "2px solid #dbe4f0" }}
+                  >
+                    {!selectedCase.profilePictureUrl && getInitials(selectedCase)}
+                  </Avatar>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, flex: 1, minWidth: 280 }}>
+                    {[
+                      { label: "Patient Name", value: selectedCase.name },
+                      { label: "Chief Complaint", value: selectedCase.caseTitle || "—" },
+                      { label: "Date of Birth", value: selectedCase.dob ? new Date(selectedCase.dob).toLocaleDateString() : "—" },
+                      { label: "Gender", value: selectedCase.gender || "—" },
+                      { label: "Code Status", value: selectedCase.codeStatus || "—" },
+                      { label: "Location", value: selectedCase.location || "—" },
+                    ].map(({ label, value }) => (
+                      <Box key={label}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          {label}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {value}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
 
             {/* ── Tabs ── */}
             <Tabs
