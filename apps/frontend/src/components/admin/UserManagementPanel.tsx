@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   adminDeleteUser,
   adminListUsers,
+  getDisplayName,
   getMe,
   adminUpdateUserRole,
   adminResetUserPassword,
@@ -79,7 +80,7 @@ export default function UserManagementPanel() {
       return users;
     }
     return users.filter((u) =>
-      [u.username, u.email, u.role].some((v) => v.toLowerCase().includes(q))
+      [getDisplayName(u), u.email, u.role].some((v) => v.toLowerCase().includes(q))
     );
   }, [users, filter]);
 
@@ -91,13 +92,6 @@ export default function UserManagementPanel() {
       },
       { student: 0, faculty: 0, admin: 0, unassigned: 0 }
     );
-  }, [users]);
-
-  const displayIds = useMemo(() => {
-    const sorted = [...users].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    return new Map(sorted.map((user, index) => [user.id, index + 1]));
   }, [users]);
 
   const handleDelete = async (id: string) => {
@@ -196,9 +190,9 @@ export default function UserManagementPanel() {
             {filteredUsers.map((user) => (
               <TableRow key={user.id} hover>
                 <TableCell>
-                  <Typography fontWeight={600}>{user.username}</Typography>
+                  <Typography fontWeight={600}>{getDisplayName(user)}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    ID: {displayIds.get(user.id)}
+                    Username: {user.username}
                   </Typography>
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
@@ -293,7 +287,7 @@ export default function UserManagementPanel() {
         <DialogTitle>Reset Password</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Set a new password for <strong>{resetTarget?.username}</strong>.
+            Set a new password for <strong>{resetTarget ? getDisplayName(resetTarget) : ""}</strong>.
           </Typography>
           <TextField
             autoFocus

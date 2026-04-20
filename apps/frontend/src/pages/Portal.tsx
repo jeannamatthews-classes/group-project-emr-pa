@@ -85,32 +85,9 @@ export default function PortalPage() {
               </Box>
             </Box>
 
-            {guestView ? null : (
-              <Button
-                component={RouterLink}
-                to="/faculty"
-                variant="contained"
-                size="small"
-                sx={portalButtonSx}
-                fullWidth
-              >
-                Go to Faculty Page
-              </Button>
-            )}
-
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               {guestView ? (
                 <>
-                  <Button
-                    component={RouterLink}
-                    to="/faculty"
-                    variant="contained"
-                    size="small"
-                    sx={portalButtonSx}
-                    fullWidth
-                  >
-                    Go to Faculty Page
-                  </Button>
                   <Button
                     component={RouterLink}
                     to="/student"
@@ -126,6 +103,16 @@ export default function PortalPage() {
                 <>
                   <Button
                     component={RouterLink}
+                    to="/faculty"
+                    variant="contained"
+                    size="small"
+                    sx={portalButtonSx}
+                    fullWidth
+                  >
+                    Go to Faculty Page
+                  </Button>
+                  <Button
+                    component={RouterLink}
                     to="/admin/users"
                     variant="contained"
                     size="small"
@@ -133,16 +120,6 @@ export default function PortalPage() {
                     fullWidth
                   >
                     Go to Admin Page
-                  </Button>
-                  <Button
-                    component={RouterLink}
-                    to="/student"
-                    variant="contained"
-                    size="small"
-                    sx={portalButtonSx}
-                    fullWidth
-                  >
-                    Go to Student View
                   </Button>
                 </>
               )}

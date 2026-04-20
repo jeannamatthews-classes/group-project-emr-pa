@@ -1,10 +1,10 @@
 import AdminShell from "../../components/admin/AdminShell";
-import SettingsPanel from "../../components/admin/SettingsPanel";
+import AccountSettingsPanel from "../../components/account/AccountSettingsPanel";
 
 export default function SettingsPage() {
   return (
     <AdminShell title="Settings" subtitle="">
-      <SettingsPanel />
+      <AccountSettingsPanel />
     </AdminShell>
   );
 }

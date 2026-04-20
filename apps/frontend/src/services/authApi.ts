@@ -36,6 +36,8 @@ const AUTH_ENDPOINTS = {
 type AuthUser = {
     id: string;
     username: string;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     role: "admin" | "faculty" | "student" | "unassigned";
 };
@@ -47,6 +49,8 @@ type LoginInput = {
 
 type RegisterInput = {
     username: string;
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
     confirmPassword: string;
@@ -60,6 +64,11 @@ type AuthSuccessResponse = {
 
 type MeResponse = {
     user: AuthUser;
+};
+
+type UpdateProfileInput = {
+    firstName: string;
+    lastName: string;
 };
 
 type ApiErrorResponse = {
@@ -117,6 +126,36 @@ export async function getMe(token: string): Promise<MeResponse>{
     return parseResponse<MeResponse>(response);
 }
 
+export async function updateMyProfile(token: string, payload: UpdateProfileInput): Promise<{
+  message: string;
+  user: AuthUser & { createdAt: string };
+}> {
+    const response = await fetch(AUTH_BASE_URL+AUTH_ENDPOINTS.me, {
+        method: "PATCH",
+        headers:{
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse(response);
+}
+
+export async function changeMyPassword(
+  token: string,
+  payload: { currentPassword: string; newPassword: string }
+): Promise<{ message: string }> {
+    const response = await fetch(AUTH_BASE_URL+"/change-password", {
+        method: "POST",
+        headers:{
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse(response);
+}
+
 
 function normalizeApiError(error: unknown): Error{
     if (error instanceof Error){
@@ -136,6 +175,7 @@ export type {
   AuthUser,
   LoginInput,
   RegisterInput,
+  UpdateProfileInput,
   AuthSuccessResponse,
   MeResponse,
   ApiErrorResponse,
@@ -194,6 +234,37 @@ export function setStoredToken(token: string, storageKey = "auth_token"): void {
   localStorage.setItem(storageKey, token);
 }
 
+export function buildAuthenticatedAssetUrl(fileUrl: string | null | undefined): string {
+  if (!fileUrl) return "";
+
+  const apiHost = AUTH_BASE_URL
+    .replace(/\/api\/auth\/?$/, "")
+    .replace(/\/api\/?$/, "");
+  const resolved = /^https?:\/\//i.test(fileUrl) ? fileUrl : `${apiHost}${fileUrl}`;
+  const token = getStoredToken();
+
+  if (!token) {
+    return resolved;
+  }
+
+  const url = new URL(resolved);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+export function getDisplayName(user: {
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  email?: string | null;
+}): string {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  if (fullName) return fullName;
+  if (user.username && user.username.trim()) return user.username;
+  if (user.email && user.email.trim()) return user.email;
+  return "Unknown user";
+}
+
 export async function refreshAccessToken(): Promise<void> {
   throw new Error("refreshAccessToken is not implemented yet.");
 }
@@ -201,6 +272,8 @@ export async function refreshAccessToken(): Promise<void> {
 export type AdminUserListItem = {
     id: string;
     username: string;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     role: "admin" | "faculty" | "student" | "unassigned";
     createdAt: string;

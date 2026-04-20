@@ -15,6 +15,8 @@ export async function listAllUsers(): Promise<AdminUsersResponse> {
       select: {
         id: true,
         username: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         createdAt: true,
@@ -40,7 +42,7 @@ export async function deleteUserById(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true, role: true },
+    select: { id: true, email: true, username: true, firstName: true, lastName: true, role: true },
   });
 
   if (!user) {
@@ -80,7 +82,7 @@ export async function updateUserRoleById(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true, role: true, createdAt: true },
+    select: { id: true, email: true, username: true, firstName: true, lastName: true, role: true, createdAt: true },
   });
 
   if (!user) {
@@ -107,6 +109,8 @@ export async function updateUserRoleById(
     select: {
       id: true,
       username: true,
+      firstName: true,
+      lastName: true,
       email: true,
       role: true,
       createdAt: true,
@@ -147,7 +151,7 @@ export async function resetUserPassword(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true },
+    select: { id: true, email: true, username: true, firstName: true, lastName: true },
   });
 
   if (!user) {
@@ -192,7 +196,7 @@ export async function changeAdminOwnPassword(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true, email: true, username: true, password: true },
+    select: { id: true, role: true, email: true, username: true, firstName: true, lastName: true, password: true },
   });
 
   if (!user) {
