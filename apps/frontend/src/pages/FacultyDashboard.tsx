@@ -1,322 +1,330 @@
-import { useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  AppBar,
-  Toolbar,
-  Typography,
-  Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
-  TextField,
-  Button,
-} from "@mui/material";
-import LogoutIcon from "@mui/icons-material/Logout";
+import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 
-import { mockStudents, mockCases } from "../components/Imports";
+import { buildAuthenticatedAssetUrl, getDisplayName, getMe, getStoredToken, logout } from "../services/authApi";
+import {
+  facultyCreateCase,
+  facultyGetCase,
+  facultyListCases,
+  facultyListStudents,
+  facultyUpdateCase,
+  facultyUploadCasePicture,
+  type FacultyCase,
+  type FacultyStudent,
+} from "../services/facultyApi";
+import FacultyCaseDialog from "../components/faculty/FacultyCaseDialog";
+import FacultyDashboardSidebar from "../components/faculty/FacultyDashboardSidebar";
+import FacultyDashboardStats from "../components/faculty/FacultyDashboardStats";
+import FacultyDashboardTopBar from "../components/faculty/FacultyDashboardTopBar";
+import {
+  DEFAULT_FACULTY_CASE_FORM,
+  type FacultyCaseFormState,
+} from "../components/faculty/facultyDashboardTypes";
 
 export default function FacultyDashboard() {
   const navigate = useNavigate();
-
   const [studentSearch, setStudentSearch] = useState("");
   const [caseSearch, setCaseSearch] = useState("");
+  const [students, setStudents] = useState<FacultyStudent[]>([]);
+  const [cases, setCases] = useState<FacultyCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
+  const [savingCase, setSavingCase] = useState(false);
+  const [caseForm, setCaseForm] = useState<FacultyCaseFormState>(DEFAULT_FACULTY_CASE_FORM);
+  const [pictureFile, setPictureFile] = useState<File | null>(null);
+  const [picturePreview, setPicturePreview] = useState<string | null>(null);
 
-  const filteredStudents = mockStudents.filter((s) =>
-    s.name.toLowerCase().includes(studentSearch.toLowerCase())
-  );
+  useEffect(() => {
+    let active = true;
 
-  const filteredCases = mockCases.filter((c) =>
-    c.title.toLowerCase().includes(caseSearch.toLowerCase())
-  );
+    async function loadDashboard() {
+      const token = getStoredToken();
+      if (!token) {
+        if (!active) return;
+        setLoading(false);
+        setError("You are not logged in.");
+        return;
+      }
+
+      try {
+        const [{ students: nextStudents }, { cases: nextCases }, me] = await Promise.all([
+          facultyListStudents(token),
+          facultyListCases(token),
+          getMe(token),
+        ]);
+
+        if (!active) return;
+        setStudents(nextStudents);
+        setCases(nextCases);
+        setIsAdmin(me.user.role === "admin");
+        setError(null);
+      } catch (loadError) {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Failed to load faculty dashboard.");
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadDashboard();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredStudents = students.filter((student) => {
+    const query = studentSearch.toLowerCase();
+    return (
+      getDisplayName(student).toLowerCase().includes(query) ||
+      student.email.toLowerCase().includes(query)
+    );
+  });
+
+  const filteredCases = cases.filter((medicalCase) => {
+    const query = caseSearch.toLowerCase();
+    return (
+      (medicalCase.caseTitle ?? medicalCase.name).toLowerCase().includes(query) ||
+      (medicalCase.patientName ?? medicalCase.patient).toLowerCase().includes(query)
+    );
+  });
+
+  const totalSubmitted = cases.reduce((sum, medicalCase) => sum + medicalCase.submittedNoteCount, 0);
+  const totalPending = cases.reduce((sum, medicalCase) => sum + medicalCase.pendingSubmissionCount, 0);
+
+  function resetCaseDialog() {
+    setEditingCaseId(null);
+    setCaseForm(DEFAULT_FACULTY_CASE_FORM);
+    setPictureFile(null);
+    setPicturePreview(null);
+    setSavingCase(false);
+  }
+
+  async function refreshDashboard() {
+    const token = getStoredToken();
+    if (!token) return;
+
+    const [{ students: nextStudents }, { cases: nextCases }] = await Promise.all([
+      facultyListStudents(token),
+      facultyListCases(token),
+    ]);
+
+    setStudents(nextStudents);
+    setCases(nextCases);
+  }
+
+  function openCreateDialog() {
+    resetCaseDialog();
+    setActionMessage(null);
+    setActionError(null);
+    setCaseDialogOpen(true);
+  }
+
+  async function openEditDialog(caseId: number) {
+    const token = getStoredToken();
+    if (!token) {
+      setActionError("You are not logged in.");
+      return;
+    }
+
+    try {
+      setActionError(null);
+      const { case: nextCase } = await facultyGetCase(token, caseId);
+      setEditingCaseId(caseId);
+      setCaseForm({
+        name: nextCase.patient,
+        chiefComplaint: nextCase.name !== nextCase.patient ? nextCase.name : "",
+        dob: nextCase.dob ? new Date(nextCase.dob).toISOString().slice(0, 10) : "",
+        gender: nextCase.gender || "Other",
+        codeStatus: nextCase.codeStatus || "Full Code",
+        location: nextCase.location || "",
+        caseType: nextCase.caseType || "pbl",
+        hasLabs: nextCase.hasLabs,
+      });
+      setPictureFile(null);
+      setPicturePreview(
+        nextCase.profilePictureUrl ? buildAuthenticatedAssetUrl(nextCase.profilePictureUrl) : null
+      );
+      setCaseDialogOpen(true);
+    } catch (loadError) {
+      setActionError(loadError instanceof Error ? loadError.message : "Failed to load case.");
+    }
+  }
+
+  function handlePictureChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setPictureFile(file);
+    setPicturePreview(file ? URL.createObjectURL(file) : picturePreview);
+  }
+
+  async function handleSaveCase() {
+    const token = getStoredToken();
+    if (!token) {
+      setActionError("You are not logged in.");
+      return;
+    }
+
+    if (!caseForm.name.trim()) {
+      setActionError("Patient name is required.");
+      return;
+    }
+
+    try {
+      setSavingCase(true);
+      setActionError(null);
+      setActionMessage(null);
+
+      if (editingCaseId !== null) {
+        await facultyUpdateCase(token, editingCaseId, {
+          name: caseForm.name.trim(),
+          caseTitle: caseForm.chiefComplaint.trim() || caseForm.name.trim(),
+          dob: caseForm.dob || undefined,
+          gender: caseForm.gender,
+          codeStatus: caseForm.codeStatus,
+          location: caseForm.location.trim() || undefined,
+          caseType: caseForm.caseType,
+          hasLabs: caseForm.hasLabs,
+        });
+
+        if (pictureFile) {
+          await facultyUploadCasePicture(token, editingCaseId, pictureFile);
+        }
+
+        await refreshDashboard();
+        setActionMessage(`Updated case for ${caseForm.name.trim()}.`);
+      } else {
+        const { case: created } = await facultyCreateCase(token, {
+          name: caseForm.name.trim(),
+          caseTitle: caseForm.chiefComplaint.trim() || caseForm.name.trim(),
+          dob: caseForm.dob || undefined,
+          gender: caseForm.gender,
+          codeStatus: caseForm.codeStatus,
+          location: caseForm.location.trim() || undefined,
+          caseType: caseForm.caseType,
+          hasLabs: caseForm.hasLabs,
+        });
+
+        if (pictureFile) {
+          await facultyUploadCasePicture(token, created.id, pictureFile);
+        }
+
+        await refreshDashboard();
+        setActionMessage(`Created case for ${caseForm.name.trim()}.`);
+      }
+
+      setCaseDialogOpen(false);
+      resetCaseDialog();
+    } catch (saveError) {
+      setActionError(saveError instanceof Error ? saveError.message : "Failed to save case.");
+    } finally {
+      setSavingCase(false);
+    }
+  }
+
+  function handleCloseCaseDialog() {
+    setCaseDialogOpen(false);
+    resetCaseDialog();
+  }
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f4f7fb" }}>
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: "#1a3a5c" }}
-      >
-        <Toolbar>
-          <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
-            EMR Faculty Portal
-          </Typography>
+      <FacultyDashboardTopBar
+        isAdmin={isAdmin}
+        onGoHome={() => navigate("/faculty")}
+        onGoToAdmin={() => navigate("/admin/users")}
+        onGoToSettings={() => navigate("/settings")}
+        onLogout={handleLogout}
+      />
 
-          <Button
-            color="inherit"
-            startIcon={<LogoutIcon />}
-            onClick={() => navigate("/login")}
-            sx={{ textTransform: "none", fontWeight: 600 }}
-          >
-            Exit
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <FacultyDashboardSidebar
+        studentSearch={studentSearch}
+        caseSearch={caseSearch}
+        students={filteredStudents}
+        cases={filteredCases}
+        onStudentSearchChange={setStudentSearch}
+        onCaseSearchChange={setCaseSearch}
+        onStudentSelect={(studentId) => navigate(`/student/${studentId}`)}
+        onCaseSelect={(caseId) => void openEditDialog(caseId)}
+      />
 
-      <Drawer
-        variant="permanent"
-        anchor="left"
-        sx={{
-          "& .MuiDrawer-paper": {
-            width: 300,
-            mt: "64px",
-            bgcolor: "#ffffff",
-            borderRight: "1px solid #dbe4f0",
-          },
-        }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography
-            variant="overline"
-            sx={{ color: "#1a3a5c", fontWeight: 700 }}
-          >
-            Students
-          </Typography>
-
-          <TextField
-            fullWidth
-            size="small"
-            label="Search students"
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-            sx={{ mb: 1.5 }}
-          />
-
-          <List dense>
-            {filteredStudents.map((student) => (
-              <ListItemButton
-                key={student.id}
-                onClick={() => navigate(`/student/${student.id}`)}
-                sx={{ borderRadius: 1.5, mb: 0.5 }}
-              >
-                <ListItemText primary={student.name} />
-              </ListItemButton>
-            ))}
-          </List>
-
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mt: 2,
-            }}
-          >
-            <Typography
-              variant="overline"
-              sx={{ color: "#1a3a5c", fontWeight: 700, mt: 2, display: "block" }}
-            >
-              Cases
+      <Box sx={{ flex: 1, ml: "320px", mt: "64px", p: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", md: "center" },
+            flexDirection: { xs: "column", md: "row" },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Faculty Dashboard
             </Typography>
-
-            <Button
-              size="small"
-              variant="contained"
-              sx={{
-                textTransform: "none",
-                fontSize: "0.65rem",
-                py: 0.2,
-                px: 1,
-                minWidth: 0,
-                lineHeight: 1.2,
-                bgcolor: "#1a3a5c",
-                mt: 1.75,
-                "&:hover": { bgcolor: "#14304d" },
-              }}
-              onClick={() => navigate("/caseTemplate/new")}
-            >
-              + New Case
-            </Button>
           </Box>
 
-          <TextField
-            fullWidth
-            size="small"
-            label="Search cases"
-            value={caseSearch}
-            onChange={(e) => setCaseSearch(e.target.value)}
-            sx={{ mb: 1.5 }}
-          />
-
-          <List dense>
-            {filteredCases.map((c) => (
-              <ListItemButton
-                key={c.id}
-                sx={{ borderRadius: 1.5, mb: 0.5 }}
-              >
-                <ListItemText
-                  primary={c.title}
-                  secondary={c.patient}
-                />
-                <Button
-                  size="small"
-                  onClick={(e) => {
-                    e.stopPropagation(); // prevents row click conflict
-                    navigate(`/caseTemplate/${c.id}`);
-                  }}
-                >
-                  Edit
-                </Button>
-              </ListItemButton>
-            ))}
-          </List>
+          <Button
+            variant="contained"
+            size="large"
+            sx={{ bgcolor: "#1a3a5c", fontWeight: 700, px: 3, textTransform: "none" }}
+            onClick={openCreateDialog}
+          >
+            + Create Case
+          </Button>
         </Box>
-      </Drawer>
 
-      <Box sx={{ flex: 1, ml: "300px", mt: "64px", p: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Faculty Dashboard
-        </Typography>
+        {actionMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {actionMessage}
+          </Alert>
+        )}
 
-        <Typography color="text.secondary">
-          Select a student or case from the sidebar to begin.
-        </Typography>
+        {actionError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {actionError}
+          </Alert>
+        )}
+
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error">{error}</Alert>
+        ) : (
+          <FacultyDashboardStats
+            studentCount={students.length}
+            caseCount={cases.length}
+            submittedCount={totalSubmitted}
+            pendingCount={totalPending}
+          />
+        )}
       </Box>
+
+      <FacultyCaseDialog
+        open={caseDialogOpen}
+        editingCaseId={editingCaseId}
+        savingCase={savingCase}
+        caseForm={caseForm}
+        picturePreview={picturePreview}
+        onClose={handleCloseCaseDialog}
+        onSave={() => void handleSaveCase()}
+        onPictureChange={handlePictureChange}
+        onCaseFormChange={setCaseForm}
+      />
     </Box>
   );
 }
-
-// import { useEffect, useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { mockStudents, mockCases, panelStyle } from "../components/Imports";
-// import { Box, Button, List, ListItemButton, ListItemText, Typography, TextField } from "@mui/material";
-// import { getStoredToken } from "../services/authApi";
-// import { facultyListStudents, type FacultyStudent } from "../services/facultyApi";
-
-// export default function FacultyDashboard() {
-//   const [studentSearch, setStudentSearch] = useState("");
-//   const [caseSearch, setCaseSearch] = useState("");
-//   const [students, setStudents] = useState<FacultyStudent[]>([]);
-//   const navigate = useNavigate();
-
-//   useEffect(() => {
-//     let active = true;
-
-//     async function loadStudents() {
-//       try {
-//         const token = getStoredToken();
-//         if (!token) return;
-//         const { students: nextStudents } = await facultyListStudents(token);
-//         if (!active) return;
-//         setStudents(nextStudents);
-//       } catch (error) {
-//         if (!active) return;
-//         console.error("Failed to load faculty students", error);
-//       }
-//     }
-
-//     void loadStudents();
-//     return () => {
-//       active = false;
-//     };
-//   }, []);
-
-//   const filteredStudents = (students.length > 0
-//     ? students.map((s) => ({ id: s.id, name: s.username }))
-//     : mockStudents
-//   ).filter((s) => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
-//   const filteredCases = mockCases.filter((c) =>c.title.toLowerCase().includes(caseSearch.toLowerCase()));
-
-//   return (
-//     <Box
-//       sx={{
-//         bgcolor: "#f4f7fb",
-//         height: "100vh",
-//         display: "flex",
-//         flexDirection: "column",
-//       }}
-//     >
-//       <Box sx={{ px: 4, pt: 4 }}>
-//         <Button onClick={() => navigate("/portal")} sx={{ mb: 2 }}>
-//           Back to Portal
-//         </Button>
-//         <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
-//           Faculty Dashboard
-//         </Typography>
-//       </Box>
-
-//       <Box
-//         sx={{
-//           display: "grid",
-//           gridTemplateColumns: "1fr 1fr",
-//           gap: 3,
-//           flex: 1,
-//           px: 4,
-//           pb: 4,
-//           width: "100%",
-//         }}
-//       >
-//         <Box sx={panelStyle}>
-//           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-//             Students
-//           </Typography>
-
-//           <TextField
-//             fullWidth
-//             label="Search Students"
-//             value={studentSearch}
-//             onChange={(e) => setStudentSearch(e.target.value)}
-//             size="small"
-//           />
-
-//           <List sx={{ mt: 2, overflowY: "auto", flex: 1 }}>
-//             {filteredStudents.map((student) => (
-//               <ListItemButton 
-//                 key={student.id}
-//                 onClick={() => navigate(`/student/${student.id}`) }
-//                 sx={{ borderRadius: 2, mb: 1 }}
-//                 >
-//                 <ListItemText primary={student.name}/>
-//               </ListItemButton>
-//             ))}
-//           </List>
-//         </Box>
-
-//         <Box sx={panelStyle}>
-//           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-//             Cases
-//           </Typography>
-
-//           <TextField
-//             fullWidth
-//             label="Search Cases"
-//             value={caseSearch}
-//             onChange={(e) => setCaseSearch(e.target.value)}
-//             size="small"
-//           />
-
-//           <List sx={{ mt: 2, overflowY: "auto", flex: 1 }}>
-//             {filteredCases.map((c) => (
-//               <ListItemButton 
-//                 key={c.id}
-//                 sx={{ borderRadius: 2, mb: 1 }}
-//               >
-//                 <Box
-//                   sx={{
-//                     display: "flex",
-//                     alignItems: "center",
-//                     justifyContent: "space-between",
-//                     width: "100%"
-//                   }}
-//                 >
-//                   <Box>
-//                     <Typography variant="body1">{c.title}</Typography>
-//                     <Typography variant="body2" color="text.secondary">{c.patient}</Typography>
-//                   </Box>
-
-//                   <Button
-//                     variant="outlined"
-//                     size="small"
-//                     onClick={() => navigate(`/caseTemplate/${c.id}`)}
-//                   >
-//                     Edit
-//                   </Button>
-//                 </Box>
-//               </ListItemButton>
-//             ))}
-//           </List>
-//         </Box>
-
-//       </Box>
-//     </Box>
-//   );
-// }

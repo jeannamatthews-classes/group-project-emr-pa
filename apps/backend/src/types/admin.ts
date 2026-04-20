@@ -3,6 +3,8 @@ export type UserRole = 'admin' | 'faculty' | 'student' | 'unassigned';
 export type AdminUserListItem = {
   id: string;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
   role: UserRole;
   createdAt: Date;

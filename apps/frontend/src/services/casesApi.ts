@@ -8,9 +8,22 @@ export type AssignedCase = {
   id: number;
   caseTitle: string | null;
   name: string;
+  patientName?: string;
+  displayTitle?: string;
+  location: string;
+  dob: string;
+  gender: string;
+  codeStatus: string;
   caseType: 'pbl' | 'sim';
   hasLabs: boolean;
   profilePictureUrl: string | null;
+  assignedByFaculty?: {
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
 };
 
 export type Assignment = {
@@ -48,7 +61,27 @@ export type NoteData = {
 };
 
 export type GradeNote = NoteData & {
-  patient: { id: number; caseTitle: string | null; name: string };
+  patient: {
+    id: number;
+    caseTitle: string | null;
+    name: string;
+    patientName?: string;
+    displayTitle?: string;
+  };
+};
+
+export type StudentCaseLab = {
+  id: string;
+  caseId: number;
+  patientId: number;
+  title: string;
+  category: string | null;
+  description: string | null;
+  originalFilename: string;
+  fileUrl: string;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SaveNotePayload = {
@@ -104,7 +137,8 @@ export async function getNote(
     headers: authHeaders(token),
   });
   if (res.status === 404) return null;
-  return parseResponse(res);
+  const data = await parseResponse<{ note: NoteData | null }>(res);
+  return data.note ? ({ note: data.note } as { note: NoteData }) : null;
 }
 
 /** Save (upsert) a note for a case — covers all 13 sections */
@@ -135,6 +169,17 @@ export async function submitNote(
 /** Feature 5 — Fetch submitted notes with grades/feedback */
 export async function getStudentGrades(token: string): Promise<{ notes: GradeNote[] }> {
   const res = await fetch(`${API_BASE}/api/student/grades`, {
+    headers: authHeaders(token),
+  });
+  return parseResponse(res);
+}
+
+/** Visible case labs released by faculty for the logged-in student */
+export async function getStudentCaseLabs(
+  token: string,
+  caseId: number
+): Promise<{ labs: StudentCaseLab[] }> {
+  const res = await fetch(`${API_BASE}/api/student/cases/${caseId}/labs`, {
     headers: authHeaders(token),
   });
   return parseResponse(res);

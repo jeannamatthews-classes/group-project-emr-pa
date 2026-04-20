@@ -58,8 +58,8 @@ router.get('/', async (req: Request, res: Response) => {
         orderBy: { createdAt: 'desc' },
         include: {
           patient: true,
-          student: { select: { id: true, username: true, email: true } },
-          assignedByFaculty: { select: { id: true, username: true, email: true } },
+          student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+          assignedByFaculty: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
         },
       });
       res.json({ assignments });
@@ -76,8 +76,8 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
       include: {
         patient: true,
-        student: { select: { id: true, username: true, email: true } },
-        assignedByFaculty: { select: { id: true, username: true, email: true } },
+        student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+        assignedByFaculty: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -135,8 +135,8 @@ router.post('/', async (req: Request, res: Response) => {
       },
       include: {
         patient: true,
-        student: { select: { id: true, username: true, email: true } },
-        assignedByFaculty: { select: { id: true, username: true, email: true } },
+        student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+        assignedByFaculty: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -154,6 +154,79 @@ router.post('/', async (req: Request, res: Response) => {
     }
     console.error('POST /api/assignments error:', error);
     res.status(500).json({ error: 'Failed to create assignment' });
+  }
+});
+
+router.delete('/:assignmentId', async (req: Request, res: Response) => {
+  try {
+    const assignmentId = String(req.params.assignmentId ?? '').trim();
+    if (!assignmentId) {
+      res.status(400).json({ error: 'Invalid assignment id' });
+      return;
+    }
+
+    const assignment = await prisma.caseAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            facultyCreatorId: true,
+            name: true,
+            caseTitle: true,
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!assignment || !assignment.patient.facultyCreatorId) {
+      res.status(404).json({ error: 'Assignment not found' });
+      return;
+    }
+
+    if (req.userRole !== 'admin' && assignment.patient.facultyCreatorId !== req.userId) {
+      res.status(403).json({ error: 'You can only manage assignments for cases you created' });
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.note.deleteMany({
+        where: {
+          patientId: assignment.patientId,
+          studentId: assignment.studentId,
+        },
+      }),
+      prisma.caseAssignment.delete({
+        where: { id: assignmentId },
+      }),
+    ]);
+
+    res.json({
+      assignment: {
+        id: assignment.id,
+        patientId: assignment.patientId,
+        studentId: assignment.studentId,
+        patient: {
+          id: assignment.patient.id,
+          name: assignment.patient.name,
+          caseTitle: assignment.patient.caseTitle,
+        },
+        student: assignment.student,
+      },
+      deletedNote: true,
+    });
+  } catch (error) {
+    console.error('DELETE /api/assignments/:assignmentId error:', error);
+    res.status(500).json({ error: 'Failed to remove assignment' });
   }
 });
 

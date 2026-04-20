@@ -10,6 +10,8 @@ datasource db {
 model User {
   id         String   @id @default(uuid())
   username   String   @unique
+  firstName  String?
+  lastName   String?
   email      String   @unique
   password   String
   role       String   @default("unassigned")
@@ -23,6 +25,7 @@ model User {
   patientsCreatedAsFaculty Patient[]        @relation("PatientsCreatedByFaculty")
   caseAssignmentsAsStudent CaseAssignment[] @relation("CaseAssignmentStudent")
   caseAssignmentsAsFaculty CaseAssignment[] @relation("CaseAssignmentFaculty")
+  caseLabsUploaded         CaseLab[]        @relation("CaseLabsUploadedByFaculty")
 }
 
 /// Patient / chart header (demographics + status).
@@ -51,8 +54,32 @@ model Patient {
   chiefComplaints ChiefComplaint[]
   notes           Note[]
   assignments     CaseAssignment[]
+  caseLabs        CaseLab[]
 
   @@index([facultyCreatorId])
+}
+
+/// Faculty-uploaded lab or diagnostic asset for a case.
+model CaseLab {
+  id                 String   @id @default(cuid())
+  patientId          Int
+  title              String
+  category           String?
+  description        String?
+  originalFilename   String
+  fileUrl            String
+  mimeType           String
+  isVisibleToStudent Boolean  @default(false)
+  uploadedByFacultyId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  patient           Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  uploadedByFaculty User?   @relation("CaseLabsUploadedByFaculty", fields: [uploadedByFacultyId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([uploadedByFacultyId])
+  @@index([patientId, isVisibleToStudent])
 }
 
 /// One-to-many from Patient: specific chief complaints.

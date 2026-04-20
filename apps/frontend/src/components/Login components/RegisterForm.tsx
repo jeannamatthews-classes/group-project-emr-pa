@@ -8,6 +8,8 @@ import useRegister from "./useRegister";
 
 export default function RegisterForm() {
   const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,6 +23,8 @@ export default function RegisterForm() {
 
     await handleRegister({
       username,
+      firstName,
+      lastName,
       email,
       password,
       confirmPassword,
@@ -47,6 +51,30 @@ export default function RegisterForm() {
                 }}
                 disabled={loading}
                 autoComplete="username"
+              />
+
+              <LoginInput
+                label="First Name"
+                type="text"
+                value={firstName}
+                onChange={(value) => {
+                  if (error) clearError();
+                  setFirstName(value);
+                }}
+                disabled={loading}
+                autoComplete="given-name"
+              />
+
+              <LoginInput
+                label="Last Name"
+                type="text"
+                value={lastName}
+                onChange={(value) => {
+                  if (error) clearError();
+                  setLastName(value);
+                }}
+                disabled={loading}
+                autoComplete="family-name"
               />
 
               <LoginInput

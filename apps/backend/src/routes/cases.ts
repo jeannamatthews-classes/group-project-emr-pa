@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
-import { upload } from './uploads';
+import { buildUploadUrl, upload, type UploadedFileLike } from './uploads';
 
 const router = express.Router();
 
@@ -31,10 +31,14 @@ function patientToCase(p: {
 	createdAt: Date;
 	updatedAt: Date;
 }) {
+	const caseTitle = p.caseTitle?.trim() ? p.caseTitle : null;
 	return {
 		id: p.id,
-		name: p.caseTitle?.trim() ? p.caseTitle : p.name,
+		name: caseTitle ?? p.name,
 		patient: p.name,
+		caseTitle,
+		patientName: p.name,
+		displayTitle: p.name,
 		location: p.location,
 		dob: p.dob,
 		gender: p.gender,
@@ -181,13 +185,13 @@ router.post(
 				return;
 			}
 
-			const uploadedFile = (req as Request & { file?: { filename: string } }).file;
+			const uploadedFile = (req as Request & { file?: UploadedFileLike }).file;
 			if (!uploadedFile) {
 				res.status(400).json({ error: 'No image file provided (field: picture)' });
 				return;
 			}
 
-			const profilePictureUrl = `/uploads/${uploadedFile.filename}`;
+			const profilePictureUrl = buildUploadUrl(uploadedFile);
 
 			await prisma.patient.update({
 				where: { id: caseId },
