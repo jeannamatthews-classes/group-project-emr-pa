@@ -58,8 +58,12 @@ function patientToCase(p: {
   };
 }
 
+function isFacultyWorkflowRole(role: string | undefined): boolean {
+  return role === 'faculty' || role === 'admin';
+}
+
 function getFacultyPatientWhere(userId: string, role: string | undefined) {
-  return role === 'admin'
+  return isFacultyWorkflowRole(role)
     ? {
         facultyCreatorId: {
           not: null,
@@ -133,7 +137,7 @@ async function assertFacultyCaseAccess(
 
   if (!patient) return { error: 'not_found' as const };
   if (!patient.facultyCreatorId) return { error: 'not_found' as const };
-  if (role === 'admin') return { patient };
+  if (isFacultyWorkflowRole(role)) return { patient };
   if (patient.facultyCreatorId === userId) return { patient };
   return { error: 'forbidden' as const };
 }
@@ -165,7 +169,7 @@ async function loadPatientForFaculty(
 
   if (!patient) return { error: 'not_found' as const };
   if (!patient.facultyCreatorId) return { error: 'not_found' as const };
-  if (role === 'admin') return { patient };
+  if (isFacultyWorkflowRole(role)) return { patient };
   if (patient.facultyCreatorId === userId) return { patient };
   return { error: 'forbidden' as const };
 }
@@ -185,23 +189,16 @@ router.get('/students', async (req: Request, res: Response) => {
     const patientWhere = getFacultyPatientWhere(req.userId as string, req.userRole);
 
     const assignments = await prisma.caseAssignment.findMany({
-      where:
-        req.userRole === 'admin'
-          ? undefined
-          : {
-              patient: patientWhere,
-            },
+      where: {
+        patient: patientWhere,
+      },
       select: { studentId: true },
     });
 
     const submittedNotes = await prisma.note.findMany({
       where: {
         isSubmitted: true,
-        ...(req.userRole === 'admin'
-          ? {}
-          : {
-              patient: patientWhere,
-            }),
+        patient: patientWhere,
       },
       select: { studentId: true },
     });
@@ -261,11 +258,7 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
     const assignments = await prisma.caseAssignment.findMany({
       where: {
         studentId,
-        ...(req.userRole === 'admin'
-          ? {}
-          : {
-              patient: getFacultyPatientWhere(req.userId as string, req.userRole),
-            }),
+        patient: getFacultyPatientWhere(req.userId as string, req.userRole),
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -336,7 +329,7 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
   }
 });
 
-/** Cases created by this faculty user (admins see all). */
+/** Cases visible in the collaborative faculty workflow. */
 router.get('/cases', async (req: Request, res: Response) => {
   try {
     const where = getFacultyPatientWhere(req.userId as string, req.userRole);
@@ -388,7 +381,7 @@ router.get('/cases', async (req: Request, res: Response) => {
   }
 });
 
-/** Update a faculty-owned case without assigning it. */
+/** Update a faculty-visible case without assigning it. */
 router.patch('/cases/:id', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.id));
@@ -468,7 +461,7 @@ router.patch('/cases/:id', async (req: Request, res: Response) => {
   }
 });
 
-/** Notes for a case with student identity (faculty-owned case or admin). */
+/** Notes for a faculty-visible case with student identity. */
 router.get('/cases/:id/notes', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.id));
@@ -532,7 +525,7 @@ router.get('/cases/:id/notes', async (req: Request, res: Response) => {
   }
 });
 
-/** All lab assets for a faculty-owned case, including hidden items. */
+/** All lab assets for a faculty-visible case, including hidden items. */
 router.get('/cases/:id/labs', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.id));
@@ -834,7 +827,7 @@ router.put(
   }
 );
 
-/** Permanently delete a lab from a faculty-owned case. */
+/** Permanently delete a lab from a faculty-visible case. */
 router.delete('/cases/:caseId/labs/:labId', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.caseId));
@@ -907,7 +900,7 @@ router.delete('/cases/:caseId/labs/:labId', async (req: Request, res: Response) 
   }
 });
 
-/** Permanently delete a faculty-owned case and its related records. */
+/** Permanently delete a faculty-visible case and its related records. */
 router.delete('/cases/:id', async (req: Request, res: Response) => {
   try {
     const caseId = parseCaseId(paramString(req.params.id));
