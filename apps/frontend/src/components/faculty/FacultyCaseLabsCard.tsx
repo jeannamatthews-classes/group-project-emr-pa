@@ -25,6 +25,7 @@ import {
 } from "./facultySubmissionShared";
 
 type FacultyCaseLabsCardProps = {
+  caseHasLabs: boolean;
   labs: FacultyCaseLab[];
   labTitle: string;
   labCategory: string;
@@ -99,6 +100,7 @@ function FacultyLabImagePreview({
 }
 
 export default function FacultyCaseLabsCard({
+  caseHasLabs,
   labs,
   labTitle,
   labCategory,
@@ -123,12 +125,21 @@ export default function FacultyCaseLabsCard({
   onEditLab,
   onLabImageError,
 }: FacultyCaseLabsCardProps) {
+  const uploadDisabled = !caseHasLabs || uploadingLab;
+
   return (
     <Card sx={{ borderRadius: 3 }}>
       <CardContent>
         <Typography variant="h6" fontWeight={700} gutterBottom>
           Create Case Lab
         </Typography>
+
+        {!caseHasLabs && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            This case is currently set to no labs. Turn on "Case with Labs" in the case editor to
+            upload new lab files.
+          </Alert>
+        )}
 
         {labMessage && (
           <Alert severity="success" sx={{ mb: 2 }}>
@@ -150,6 +161,7 @@ export default function FacultyCaseLabsCard({
               value={labTitle}
               onChange={(event) => onLabTitleChange(event.target.value)}
               placeholder="CBC Results, Chest X-Ray, CMP Panel..."
+              disabled={!caseHasLabs}
             />
             <TextField
               label="Category"
@@ -157,6 +169,7 @@ export default function FacultyCaseLabsCard({
               value={labCategory}
               onChange={(event) => onLabCategoryChange(event.target.value)}
               placeholder="Optional grouping"
+              disabled={!caseHasLabs}
             />
           </Stack>
 
@@ -168,6 +181,7 @@ export default function FacultyCaseLabsCard({
             value={labDescription}
             onChange={(event) => onLabDescriptionChange(event.target.value)}
             placeholder="Optional instructions for the lab."
+            disabled={!caseHasLabs}
           />
 
           <Stack
@@ -175,7 +189,7 @@ export default function FacultyCaseLabsCard({
             spacing={2}
             alignItems={{ xs: "stretch", md: "center" }}
           >
-            <Button component="label" variant="outlined">
+            <Button component="label" variant="outlined" disabled={!caseHasLabs}>
               Choose Lab File
               <input hidden type="file" accept={LAB_FILE_ACCEPT} onChange={onLabFileChange} />
             </Button>
@@ -189,6 +203,7 @@ export default function FacultyCaseLabsCard({
                 <Switch
                   checked={labVisibleToStudent}
                   onChange={(event) => onLabVisibleToStudentChange(event.target.checked)}
+                  disabled={!caseHasLabs}
                 />
               }
               label="Visible to students now"
@@ -197,7 +212,7 @@ export default function FacultyCaseLabsCard({
               variant="contained"
               sx={{ bgcolor: "#1a3a5c" }}
               onClick={onUploadLab}
-              disabled={uploadingLab}
+              disabled={uploadDisabled}
               startIcon={uploadingLab ? <CircularProgress size={16} color="inherit" /> : null}
             >
               {uploadingLab ? "Uploading..." : "Upload Lab"}

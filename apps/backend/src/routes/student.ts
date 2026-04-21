@@ -133,6 +133,7 @@ router.get('/cases/:id/labs', async (req: Request, res: Response) => {
         patient: {
           select: {
             facultyCreatorId: true,
+            hasLabs: true,
           },
         },
       },
@@ -140,6 +141,11 @@ router.get('/cases/:id/labs', async (req: Request, res: Response) => {
 
     if (!assignment || !assignment.patient.facultyCreatorId) {
       res.status(403).json({ error: 'You are not assigned to this case.' });
+      return;
+    }
+
+    if (!assignment.patient.hasLabs) {
+      res.json({ labs: [] });
       return;
     }
 

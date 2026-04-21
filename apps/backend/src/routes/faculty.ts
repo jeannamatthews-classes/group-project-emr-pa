@@ -125,6 +125,11 @@ function caseLabToFacultyPayload(lab: {
   };
 }
 
+function cleanupUploadedLabFile(uploadedFile?: UploadedFileLike) {
+  if (!uploadedFile) return;
+  deleteUploadFileIfExists(buildUploadUrl(uploadedFile));
+}
+
 async function assertFacultyCaseAccess(
   patientId: number,
   userId: string,
@@ -132,7 +137,7 @@ async function assertFacultyCaseAccess(
 ) {
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
-    select: { id: true, facultyCreatorId: true },
+    select: { id: true, facultyCreatorId: true, hasLabs: true },
   });
 
   if (!patient) return { error: 'not_found' as const };
@@ -567,15 +572,19 @@ router.post(
   '/cases/:id/labs',
   labUpload.single('file'),
   async (req: Request, res: Response) => {
+    const uploadedFile = (req as Request & { file?: UploadedFileLike }).file;
+
     try {
       const caseId = parseCaseId(paramString(req.params.id));
       if (!caseId) {
+        cleanupUploadedLabFile(uploadedFile);
         res.status(400).json({ error: 'Invalid case id' });
         return;
       }
 
       const access = await assertFacultyCaseAccess(caseId, req.userId!, req.userRole);
       if ('error' in access) {
+        cleanupUploadedLabFile(uploadedFile);
         if (access.error === 'not_found') {
           res.status(404).json({ error: 'Case not found' });
           return;
@@ -585,10 +594,17 @@ router.post(
         return;
       }
 
-      const uploadedFile = (req as Request & { file?: UploadedFileLike }).file;
       if (!uploadedFile) {
         res.status(400).json({
           error: 'No lab file provided. Supported formats: PDF, images, CSV, TXT, XLS, XLSX.',
+        });
+        return;
+      }
+
+      if (!access.patient.hasLabs) {
+        cleanupUploadedLabFile(uploadedFile);
+        res.status(409).json({
+          error: 'Case labs are disabled for this case. Turn on "Case with Labs" before uploading.',
         });
         return;
       }
@@ -613,36 +629,28 @@ router.post(
           : null;
       const isVisibleToStudent = parseOptionalBoolean(body.isVisibleToStudent) ?? false;
 
-      const createdLab = await prisma.$transaction(async (tx) => {
-        const lab = await tx.caseLab.create({
-          data: {
-            patientId: caseId,
-            title,
-            category,
-            description,
-            originalFilename: uploadedFile.originalname,
-            fileUrl: buildUploadUrl(uploadedFile),
-            mimeType: uploadedFile.mimetype,
-            isVisibleToStudent,
-            uploadedByFacultyId: req.userId ?? null,
+      const createdLab = await prisma.caseLab.create({
+        data: {
+          patientId: caseId,
+          title,
+          category,
+          description,
+          originalFilename: uploadedFile.originalname,
+          fileUrl: buildUploadUrl(uploadedFile),
+          mimeType: uploadedFile.mimetype,
+          isVisibleToStudent,
+          uploadedByFacultyId: req.userId ?? null,
+        },
+        include: {
+          uploadedByFaculty: {
+            select: { id: true, username: true, firstName: true, lastName: true, email: true },
           },
-          include: {
-            uploadedByFaculty: {
-              select: { id: true, username: true, firstName: true, lastName: true, email: true },
-            },
-          },
-        });
-
-        await tx.patient.update({
-          where: { id: caseId },
-          data: { hasLabs: true },
-        });
-
-        return lab;
+        },
       });
 
       res.status(201).json({ lab: caseLabToFacultyPayload(createdLab) });
     } catch (error) {
+      cleanupUploadedLabFile(uploadedFile);
       console.error('POST /api/faculty/cases/:id/labs error:', error);
       res.status(500).json({ error: 'Failed to upload case lab' });
     }
@@ -868,22 +876,9 @@ router.delete('/cases/:caseId/labs/:labId', async (req: Request, res: Response) 
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.caseLab.delete({
+      await prisma.caseLab.delete({
         where: { id: labId },
       });
-
-      const remainingLabs = await tx.caseLab.count({
-        where: { patientId: caseId },
-      });
-
-      if (remainingLabs === 0) {
-        await tx.patient.update({
-          where: { id: caseId },
-          data: { hasLabs: false },
-        });
-      }
-    });
 
     deleteUploadFileIfExists(existingLab.fileUrl);
 
