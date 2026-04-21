@@ -88,6 +88,7 @@ export type FacultyCase = {
   totalNoteCount: number;
   submittedNoteCount: number;
   pendingSubmissionCount: number;
+  pendingReviewCount: number;
   latestSubmittedAt: string | null;
   createdAt: string;
   updatedAt: string;

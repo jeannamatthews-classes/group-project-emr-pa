@@ -125,21 +125,12 @@ export default function FacultyCaseLabsCard({
   onEditLab,
   onLabImageError,
 }: FacultyCaseLabsCardProps) {
-  const uploadDisabled = !caseHasLabs || uploadingLab;
-
   return (
     <Card sx={{ borderRadius: 3 }}>
       <CardContent>
         <Typography variant="h6" fontWeight={700} gutterBottom>
-          Create Case Lab
+          Case Labs
         </Typography>
-
-        {!caseHasLabs && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            This case is currently set to no labs. Turn on "Case with Labs" in the case editor to
-            upload new lab files.
-          </Alert>
-        )}
 
         {labMessage && (
           <Alert severity="success" sx={{ mb: 2 }}>
@@ -153,80 +144,90 @@ export default function FacultyCaseLabsCard({
           </Alert>
         )}
 
-        <Stack spacing={2} sx={{ mb: 3 }}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            <TextField
-              label="Lab Title"
-              fullWidth
-              value={labTitle}
-              onChange={(event) => onLabTitleChange(event.target.value)}
-              placeholder="CBC Results, Chest X-Ray, CMP Panel..."
-              disabled={!caseHasLabs}
-            />
-            <TextField
-              label="Category"
-              fullWidth
-              value={labCategory}
-              onChange={(event) => onLabCategoryChange(event.target.value)}
-              placeholder="Optional grouping"
-              disabled={!caseHasLabs}
-            />
-          </Stack>
-
-          <TextField
-            label="Faculty Note"
-            fullWidth
-            multiline
-            minRows={3}
-            value={labDescription}
-            onChange={(event) => onLabDescriptionChange(event.target.value)}
-            placeholder="Optional instructions for the lab."
-            disabled={!caseHasLabs}
-          />
-
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            alignItems={{ xs: "stretch", md: "center" }}
-          >
-            <Button component="label" variant="outlined" disabled={!caseHasLabs}>
-              Choose Lab File
-              <input hidden type="file" accept={LAB_FILE_ACCEPT} onChange={onLabFileChange} />
-            </Button>
-            <Typography color="text.secondary" sx={{ flex: 1 }}>
-              {labFile
-                ? labFile.name
-                : "PDF, image, CSV, TXT, XLS, or XLSX files up to 10 MB."}
+        {caseHasLabs ? (
+          <>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+              Create Case Lab
             </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={labVisibleToStudent}
-                  onChange={(event) => onLabVisibleToStudentChange(event.target.checked)}
-                  disabled={!caseHasLabs}
-                />
-              }
-              label="Visible to students now"
-            />
-            <Button
-              variant="contained"
-              sx={{ bgcolor: "#1a3a5c" }}
-              onClick={onUploadLab}
-              disabled={uploadDisabled}
-              startIcon={uploadingLab ? <CircularProgress size={16} color="inherit" /> : null}
-            >
-              {uploadingLab ? "Uploading..." : "Upload Lab"}
-            </Button>
-          </Stack>
-        </Stack>
 
-        <Divider sx={{ mb: 2 }} />
+            <Stack spacing={2} sx={{ mb: 3 }}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField
+                  label="Lab Title"
+                  fullWidth
+                  value={labTitle}
+                  onChange={(event) => onLabTitleChange(event.target.value)}
+                  placeholder="CBC Results, Chest X-Ray, CMP Panel..."
+                />
+                <TextField
+                  label="Category"
+                  fullWidth
+                  value={labCategory}
+                  onChange={(event) => onLabCategoryChange(event.target.value)}
+                  placeholder="Optional grouping"
+                />
+              </Stack>
+
+              <TextField
+                label="Faculty Note"
+                fullWidth
+                multiline
+                minRows={3}
+                value={labDescription}
+                onChange={(event) => onLabDescriptionChange(event.target.value)}
+                placeholder="Optional instructions for the lab."
+              />
+
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={2}
+                alignItems={{ xs: "stretch", md: "center" }}
+              >
+                <Button component="label" variant="outlined">
+                  Choose Lab File
+                  <input hidden type="file" accept={LAB_FILE_ACCEPT} onChange={onLabFileChange} />
+                </Button>
+                <Typography color="text.secondary" sx={{ flex: 1 }}>
+                  {labFile
+                    ? labFile.name
+                    : "PDF, image, CSV, TXT, XLS, or XLSX files up to 10 MB."}
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={labVisibleToStudent}
+                      onChange={(event) => onLabVisibleToStudentChange(event.target.checked)}
+                    />
+                  }
+                  label="Visible to students now"
+                />
+                <Button
+                  variant="contained"
+                  sx={{ bgcolor: "#1a3a5c" }}
+                  onClick={onUploadLab}
+                  disabled={uploadingLab}
+                  startIcon={uploadingLab ? <CircularProgress size={16} color="inherit" /> : null}
+                >
+                  {uploadingLab ? "Uploading..." : "Upload Lab"}
+                </Button>
+              </Stack>
+            </Stack>
+
+            <Divider sx={{ mb: 2 }} />
+          </>
+        ) : (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Case with Labs is toggled off. Existing labs can be seen below.
+          </Alert>
+        )}
 
         {labs.length === 0 ? (
-          <Alert severity="info">
-            No labs uploaded yet. You can upload them hidden first, then unhide them when you
-            want students to see them.
-          </Alert>
+          caseHasLabs ? (
+            <Alert severity="info">
+              No labs uploaded yet. You can upload them hidden first, then unhide them when you
+              want students to see them.
+            </Alert>
+          ) : null
         ) : (
           <Stack spacing={2}>
             {labs.map((lab) => (
