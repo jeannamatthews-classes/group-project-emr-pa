@@ -42,23 +42,16 @@ export default function FacultyCaseSummaryCard({
           }}
         >
           <Box sx={{ flex: 1 }}>
-            <Typography
-              sx={{
-                fontSize: { xs: "2.75rem", md: "3.35rem" },
-                lineHeight: 1,
-                fontWeight: 800,
-                mb: 1.25,
-              }}
-            >
+            <Typography variant="h4" fontWeight={700} gutterBottom>
               {patientName}
             </Typography>
-            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" }, mb: 0.25 }}>
+            <Typography color="text.secondary">
               Chief Complaint: {chiefComplaintLabel}
             </Typography>
-            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" }, mb: 0.25 }}>
+            <Typography color="text.secondary">
               Student: {studentLabel || studentId}
             </Typography>
-            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" } }}>
+            <Typography color="text.secondary">
               Email: {assignedStudent?.email ?? "Not available"}
             </Typography>
           </Box>
