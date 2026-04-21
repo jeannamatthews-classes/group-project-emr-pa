@@ -101,7 +101,7 @@ export default function FacultyDashboard() {
   });
 
   const totalSubmitted = cases.reduce((sum, medicalCase) => sum + medicalCase.submittedNoteCount, 0);
-  const totalPending = cases.reduce((sum, medicalCase) => sum + medicalCase.pendingSubmissionCount, 0);
+  const totalPending = cases.reduce((sum, medicalCase) => sum + medicalCase.pendingReviewCount, 0);
 
   function resetCaseDialog() {
     setEditingCaseId(null);
