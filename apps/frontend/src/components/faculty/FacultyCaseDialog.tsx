@@ -50,26 +50,18 @@ export default function FacultyCaseDialog({
   const isBusy = savingCase || deletingCase;
 
   return (
-    <Dialog open={open} onClose={isBusy ? undefined : onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={isBusy ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, bgcolor: "#1a3a5c", color: "#fff" }}>
         {editingCaseId !== null ? "Edit Case" : "Create Case"}
       </DialogTitle>
 
-      <DialogContent
-        dividers
-        sx={{ display: "flex", flexDirection: "column", gap: 2.25, pt: 2.5, pb: 1.5 }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2.25 }}>
+      <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
             src={picturePreview ?? undefined}
-            sx={{ width: 108, height: 108, bgcolor: "#dbe4f0" }}
+            sx={{ width: 72, height: 72, bgcolor: "#dbe4f0" }}
           />
-          <Button
-            variant="outlined"
-            component="label"
-            size="large"
-            sx={{ textTransform: "none", fontWeight: 700, px: 2.5 }}
-          >
+          <Button variant="outlined" component="label" size="small">
             {editingCaseId !== null ? "Update Photo" : "Upload Photo"}
             <input type="file" accept="image/*" hidden onChange={onPictureChange} />
           </Button>
@@ -167,43 +159,43 @@ export default function FacultyCaseDialog({
         </Box>
       </DialogContent>
 
-      <DialogActions
-        sx={{ px: 3, py: 2.25, justifyContent: "space-between", alignItems: "center" }}
-      >
-        <Box>
-          {editingCaseId !== null && (
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteOutlineIcon />}
-              onClick={onDelete}
-              disabled={isBusy}
-              sx={{ textTransform: "none", fontWeight: 700, borderRadius: 999, px: 2 }}
-            >
-              {deletingCase ? "Deleting..." : "Delete Case"}
-            </Button>
-          )}
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 1.5 }}>
+      <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        {editingCaseId !== null && (
           <Button onClick={onClose} disabled={isBusy} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
+        )}
+        {editingCaseId !== null && (
           <Button
-            variant="contained"
-            onClick={onSave}
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteOutlineIcon />}
+            onClick={onDelete}
             disabled={isBusy}
-            sx={{ bgcolor: "#1a3a5c", textTransform: "none", fontWeight: 700, px: 3 }}
+            sx={{ textTransform: "none", fontWeight: 700 }}
           >
-            {savingCase
-              ? editingCaseId !== null
-                ? "Saving..."
-                : "Creating..."
-              : editingCaseId !== null
-                ? "Save Changes"
-                : "Create Case"}
+            {deletingCase ? "Deleting..." : "Delete Case"}
           </Button>
-        </Box>
+        )}
+        {editingCaseId === null && (
+          <Button onClick={onClose} disabled={isBusy} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+        )}
+        <Button
+          variant="contained"
+          onClick={onSave}
+          disabled={isBusy}
+          sx={{ bgcolor: "#1a3a5c", textTransform: "none", fontWeight: 700 }}
+        >
+          {savingCase
+            ? editingCaseId !== null
+              ? "Saving..."
+              : "Creating..."
+            : editingCaseId !== null
+              ? "Save Changes"
+              : "Create Case"}
+        </Button>
       </DialogActions>
     </Dialog>
   );
