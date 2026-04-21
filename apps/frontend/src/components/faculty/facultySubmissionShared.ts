@@ -1,4 +1,5 @@
-import { buildAuthenticatedAssetUrl } from "../../services/authApi";
+import { useAuthenticatedAssetUrl } from "../../hooks/useAuthenticatedAssetUrl";
+import { openAuthenticatedAsset } from "../../services/authApi";
 import type { FacultyCaseLab } from "../../services/facultyApi";
 
 export type FacultyNoteSectionKey =
@@ -50,8 +51,12 @@ export function displaySubmissionSectionValue(value: string | null): string {
   return value && value.trim() ? value : "Not provided.";
 }
 
-export function resolveFacultyAssetUrl(fileUrl: string | null | undefined): string {
-  return buildAuthenticatedAssetUrl(fileUrl);
+export function useFacultyAssetUrl(fileUrl: string | null | undefined) {
+  return useAuthenticatedAssetUrl(fileUrl);
+}
+
+export async function openFacultyAsset(fileUrl: string | null | undefined): Promise<void> {
+  await openAuthenticatedAsset(fileUrl);
 }
 
 export function isImageLab(lab: Pick<FacultyCaseLab, "mimeType">): boolean {

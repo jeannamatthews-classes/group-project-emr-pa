@@ -21,7 +21,7 @@ import {
   formatSubmissionDate,
   isImageLab,
   LAB_FILE_ACCEPT,
-  resolveFacultyAssetUrl,
+  useFacultyAssetUrl,
 } from "./facultySubmissionShared";
 
 type FacultyCaseLabsCardProps = {
@@ -43,11 +43,60 @@ type FacultyCaseLabsCardProps = {
   onLabFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onLabVisibleToStudentChange: (checked: boolean) => void;
   onUploadLab: () => void;
+  onOpenLab: (lab: FacultyCaseLab) => void;
   onToggleLabVisibility: (lab: FacultyCaseLab) => void;
   onDeleteLab: (lab: FacultyCaseLab) => void;
   onEditLab: (lab: FacultyCaseLab) => void;
   onLabImageError: (labId: string) => void;
 };
+
+type FacultyLabImagePreviewProps = {
+  lab: FacultyCaseLab;
+  hasLoadError: boolean;
+  onLabImageError: (labId: string) => void;
+};
+
+function FacultyLabImagePreview({
+  lab,
+  hasLoadError,
+  onLabImageError,
+}: FacultyLabImagePreviewProps) {
+  const { assetUrl, error, loading } = useFacultyAssetUrl(lab.fileUrl);
+
+  if (hasLoadError || error) {
+    return (
+      <Alert severity="warning">
+        This image preview could not be displayed here. Use Open File to view it directly.
+      </Alert>
+    );
+  }
+
+  if (loading || !assetUrl) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      component="img"
+      src={assetUrl}
+      alt={lab.title}
+      onError={() => onLabImageError(lab.id)}
+      sx={{
+        width: "100%",
+        maxHeight: 320,
+        display: "block",
+        objectFit: "contain",
+        borderRadius: 2,
+        border: "1px solid #dbe4f0",
+        bgcolor: "#f8fafc",
+      }}
+    />
+  );
+}
 
 export default function FacultyCaseLabsCard({
   labs,
@@ -68,6 +117,7 @@ export default function FacultyCaseLabsCard({
   onLabFileChange,
   onLabVisibleToStudentChange,
   onUploadLab,
+  onOpenLab,
   onToggleLabVisibility,
   onDeleteLab,
   onEditLab,
@@ -201,10 +251,7 @@ export default function FacultyCaseLabsCard({
                       <Stack direction={{ xs: "column", sm: "row", md: "column" }} spacing={1}>
                         <Button
                           variant="outlined"
-                          component="a"
-                          href={resolveFacultyAssetUrl(lab.fileUrl)}
-                          target="_blank"
-                          rel="noreferrer"
+                          onClick={() => onOpenLab(lab)}
                         >
                           Open File
                         </Button>
@@ -244,28 +291,12 @@ export default function FacultyCaseLabsCard({
                       </Stack>
                     </Box>
 
-                    {isImageLab(lab) && !imageLoadErrors[lab.id] && (
-                      <Box
-                        component="img"
-                        src={resolveFacultyAssetUrl(lab.fileUrl)}
-                        alt={lab.title}
-                        onError={() => onLabImageError(lab.id)}
-                        sx={{
-                          width: "100%",
-                          maxHeight: 320,
-                          display: "block",
-                          objectFit: "contain",
-                          borderRadius: 2,
-                          border: "1px solid #dbe4f0",
-                          bgcolor: "#f8fafc",
-                        }}
+                    {isImageLab(lab) && (
+                      <FacultyLabImagePreview
+                        lab={lab}
+                        hasLoadError={Boolean(imageLoadErrors[lab.id])}
+                        onLabImageError={onLabImageError}
                       />
-                    )}
-                    {isImageLab(lab) && imageLoadErrors[lab.id] && (
-                      <Alert severity="warning">
-                        This image preview could not be displayed here. Use Open File to view it
-                        directly.
-                      </Alert>
                     )}
                   </Stack>
                 </CardContent>
