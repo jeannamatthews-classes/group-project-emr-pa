@@ -47,7 +47,7 @@ export default function FacultyDashboardSidebar({
         },
       }}
     >
-      <Box sx={{ p: 2, pb: 4 }}>
+      <Box sx={{ p: 3, pb: 4 }}>
         <Typography variant="overline" sx={{ color: "#1a3a5c", fontWeight: 700 }}>
           Students
         </Typography>
@@ -55,22 +55,24 @@ export default function FacultyDashboardSidebar({
         <TextField
           fullWidth
           size="small"
-          label="Search students"
+          placeholder="Search students"
           value={studentSearch}
           onChange={(event) => onStudentSearchChange(event.target.value)}
-          sx={{ mb: 1.5 }}
+          sx={{ mb: 2.25 }}
         />
 
-        <List dense sx={{ mb: 2 }}>
+        <List sx={{ mb: 3, p: 0 }}>
           {students.map((student) => (
             <ListItemButton
               key={student.id}
               onClick={() => onStudentSelect(student.id)}
-              sx={{ borderRadius: 1.5, mb: 0.5, alignItems: "flex-start" }}
+              sx={{ borderRadius: 1.5, mb: 0.75, alignItems: "flex-start", px: 1.5, py: 1.25 }}
             >
               <ListItemText
                 primary={getDisplayName(student)}
-                secondary={`${student.assignmentCount} assigned • ${student.submittedCount} submitted`}
+                secondary={`${student.assignmentCount} assigned - ${student.submittedCount} submitted`}
+                primaryTypographyProps={{ fontSize: "1rem", fontWeight: 500 }}
+                secondaryTypographyProps={{ fontSize: "0.95rem" }}
               />
             </ListItemButton>
           ))}
@@ -83,22 +85,24 @@ export default function FacultyDashboardSidebar({
         <TextField
           fullWidth
           size="small"
-          label="Search cases"
+          placeholder="Search cases"
           value={caseSearch}
           onChange={(event) => onCaseSearchChange(event.target.value)}
-          sx={{ mb: 1.5 }}
+          sx={{ mb: 2.25 }}
         />
 
-        <List dense>
+        <List sx={{ p: 0 }}>
           {cases.map((medicalCase) => (
             <ListItemButton
               key={medicalCase.id}
               onClick={() => onCaseSelect(medicalCase.id)}
-              sx={{ borderRadius: 1.5, mb: 0.5, alignItems: "flex-start" }}
+              sx={{ borderRadius: 1.5, mb: 0.75, alignItems: "flex-start", px: 1.5, py: 1.25 }}
             >
               <ListItemText
                 primary={medicalCase.patientName ?? medicalCase.patient}
-                secondary={`${medicalCase.caseTitle ?? medicalCase.name} • ${medicalCase.submittedNoteCount}/${medicalCase.assignments.length} submitted`}
+                secondary={`${medicalCase.caseTitle ?? medicalCase.name} - ${medicalCase.submittedNoteCount}/${medicalCase.assignments.length} submitted`}
+                primaryTypographyProps={{ fontSize: "1rem", fontWeight: 500 }}
+                secondaryTypographyProps={{ fontSize: "0.95rem" }}
               />
             </ListItemButton>
           ))}

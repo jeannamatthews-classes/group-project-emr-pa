@@ -6,6 +6,7 @@ import { getDisplayName, getMe, getStoredToken, logout } from "../services/authA
 import { useAuthenticatedAssetUrl } from "../hooks/useAuthenticatedAssetUrl";
 import {
   facultyCreateCase,
+  facultyDeleteCase,
   facultyGetCase,
   facultyListCases,
   facultyListStudents,
@@ -37,6 +38,7 @@ export default function FacultyDashboard() {
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
   const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
   const [savingCase, setSavingCase] = useState(false);
+  const [deletingCase, setDeletingCase] = useState(false);
   const [caseForm, setCaseForm] = useState<FacultyCaseFormState>(DEFAULT_FACULTY_CASE_FORM);
   const [pictureFile, setPictureFile] = useState<File | null>(null);
   const [picturePreview, setPicturePreview] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export default function FacultyDashboard() {
     setPictureFile(null);
     setPicturePreview(null);
     setSavingCase(false);
+    setDeletingCase(false);
   }
 
   async function refreshDashboard() {
@@ -228,6 +231,38 @@ export default function FacultyDashboard() {
     }
   }
 
+  async function handleDeleteCase() {
+    if (editingCaseId === null) {
+      return;
+    }
+
+    const patientName = caseForm.name.trim() || "this patient";
+    if (!window.confirm(`Delete the case for ${patientName}? This cannot be undone.`)) {
+      return;
+    }
+
+    const token = getStoredToken();
+    if (!token) {
+      setActionError("You are not logged in.");
+      return;
+    }
+
+    try {
+      setDeletingCase(true);
+      setActionError(null);
+      setActionMessage(null);
+      await facultyDeleteCase(token, editingCaseId);
+      await refreshDashboard();
+      setCaseDialogOpen(false);
+      resetCaseDialog();
+      setActionMessage(`Deleted case for ${patientName}.`);
+    } catch (deleteError) {
+      setActionError(deleteError instanceof Error ? deleteError.message : "Failed to delete case.");
+    } finally {
+      setDeletingCase(false);
+    }
+  }
+
   function handleCloseCaseDialog() {
     setCaseDialogOpen(false);
     resetCaseDialog();
@@ -318,10 +353,12 @@ export default function FacultyDashboard() {
         open={caseDialogOpen}
         editingCaseId={editingCaseId}
         savingCase={savingCase}
+        deletingCase={deletingCase}
         caseForm={caseForm}
         picturePreview={resolvedPicturePreview}
         onClose={handleCloseCaseDialog}
         onSave={() => void handleSaveCase()}
+        onDelete={() => void handleDeleteCase()}
         onPictureChange={handlePictureChange}
         onCaseFormChange={setCaseForm}
       />
