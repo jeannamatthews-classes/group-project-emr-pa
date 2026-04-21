@@ -26,6 +26,10 @@ export default function FacultyCaseSummaryCard({
   patientName,
   chiefComplaint,
 }: FacultyCaseSummaryCardProps) {
+  const studentLabel = assignedStudent ? getDisplayName(assignedStudent) : "Unassigned";
+  const chiefComplaintLabel =
+    chiefComplaint && chiefComplaint !== patientName ? chiefComplaint : "No chief complaint listed";
+
   return (
     <Card sx={{ borderRadius: 3 }}>
       <CardContent>
@@ -34,27 +38,38 @@ export default function FacultyCaseSummaryCard({
             display: "flex",
             flexDirection: { xs: "column", md: "row" },
             justifyContent: "space-between",
-            gap: 2,
+            gap: 3,
           }}
         >
-          <Box>
-            <Typography variant="h4" fontWeight={700}>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{
+                fontSize: { xs: "2.75rem", md: "3.35rem" },
+                lineHeight: 1,
+                fontWeight: 800,
+                mb: 1.25,
+              }}
+            >
               {patientName}
             </Typography>
-            <Typography color="text.secondary">
-              {chiefComplaint && chiefComplaint !== patientName
-                ? chiefComplaint
-                : "No chief complaint listed"}
+            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" }, mb: 0.25 }}>
+              Chief Complaint: {chiefComplaintLabel}
             </Typography>
-            <Typography color="text.secondary">
-              Student: {assignedStudent ? getDisplayName(assignedStudent) : studentId}
+            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" }, mb: 0.25 }}>
+              Student: {studentLabel || studentId}
             </Typography>
-            <Typography color="text.secondary">
-              Assigned student email: {assignedStudent?.email ?? "Not available"}
+            <Typography sx={{ fontSize: { xs: "1.45rem", md: "1.65rem" } }}>
+              Email: {assignedStudent?.email ?? "Not available"}
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack
+            direction="row"
+            spacing={1}
+            flexWrap="wrap"
+            useFlexGap
+            sx={{ alignSelf: { xs: "flex-start", md: "flex-start" } }}
+          >
             <Chip label={caseDetail.caseType.toUpperCase()} />
             {note ? (
               <Chip
