@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import type { FacultyCaseFormState } from "./facultyDashboardTypes";
 
@@ -23,10 +24,12 @@ type FacultyCaseDialogProps = {
   open: boolean;
   editingCaseId: number | null;
   savingCase: boolean;
+  deletingCase: boolean;
   caseForm: FacultyCaseFormState;
   picturePreview: string | null;
   onClose: () => void;
   onSave: () => void;
+  onDelete: () => void;
   onPictureChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onCaseFormChange: (nextForm: FacultyCaseFormState) => void;
 };
@@ -35,26 +38,38 @@ export default function FacultyCaseDialog({
   open,
   editingCaseId,
   savingCase,
+  deletingCase,
   caseForm,
   picturePreview,
   onClose,
   onSave,
+  onDelete,
   onPictureChange,
   onCaseFormChange,
 }: FacultyCaseDialogProps) {
+  const isBusy = savingCase || deletingCase;
+
   return (
-    <Dialog open={open} onClose={savingCase ? undefined : onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={isBusy ? undefined : onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, bgcolor: "#1a3a5c", color: "#fff" }}>
         {editingCaseId !== null ? "Edit Case" : "Create Case"}
       </DialogTitle>
 
-      <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <DialogContent
+        dividers
+        sx={{ display: "flex", flexDirection: "column", gap: 2.25, pt: 2.5, pb: 1.5 }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2.25 }}>
           <Avatar
             src={picturePreview ?? undefined}
-            sx={{ width: 72, height: 72, bgcolor: "#dbe4f0" }}
+            sx={{ width: 108, height: 108, bgcolor: "#dbe4f0" }}
           />
-          <Button variant="outlined" component="label" size="small">
+          <Button
+            variant="outlined"
+            component="label"
+            size="large"
+            sx={{ textTransform: "none", fontWeight: 700, px: 2.5 }}
+          >
             {editingCaseId !== null ? "Update Photo" : "Upload Photo"}
             <input type="file" accept="image/*" hidden onChange={onPictureChange} />
           </Button>
@@ -152,24 +167,43 @@ export default function FacultyCaseDialog({
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={savingCase} sx={{ textTransform: "none" }}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={onSave}
-          disabled={savingCase}
-          sx={{ bgcolor: "#1a3a5c", textTransform: "none", fontWeight: 700 }}
-        >
-          {savingCase
-            ? editingCaseId !== null
-              ? "Saving..."
-              : "Creating..."
-            : editingCaseId !== null
-              ? "Save Changes"
-              : "Create Case"}
-        </Button>
+      <DialogActions
+        sx={{ px: 3, py: 2.25, justifyContent: "space-between", alignItems: "center" }}
+      >
+        <Box>
+          {editingCaseId !== null && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteOutlineIcon />}
+              onClick={onDelete}
+              disabled={isBusy}
+              sx={{ textTransform: "none", fontWeight: 700, borderRadius: 999, px: 2 }}
+            >
+              {deletingCase ? "Deleting..." : "Delete Case"}
+            </Button>
+          )}
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1.5 }}>
+          <Button onClick={onClose} disabled={isBusy} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={onSave}
+            disabled={isBusy}
+            sx={{ bgcolor: "#1a3a5c", textTransform: "none", fontWeight: 700, px: 3 }}
+          >
+            {savingCase
+              ? editingCaseId !== null
+                ? "Saving..."
+                : "Creating..."
+              : editingCaseId !== null
+                ? "Save Changes"
+                : "Create Case"}
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );
