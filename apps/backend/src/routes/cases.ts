@@ -53,6 +53,7 @@ function patientToCase(p: {
 }
 
 router.use(authMiddleware);
+router.use(facultyOrAdminMiddleware);
 
 router.get('/', async (_req: Request, res: Response) => {
 	try {
@@ -115,7 +116,7 @@ router.get('/:id/notes', async (req: Request, res: Response) => {
 	}
 });
 
-router.post('/', facultyOrAdminMiddleware, async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
 	try {
 		const body = (req.body ?? {}) as {
 			caseTitle?: unknown;
@@ -175,7 +176,6 @@ router.post('/', facultyOrAdminMiddleware, async (req: Request, res: Response) =
 
 router.post(
 	'/:id/picture',
-	facultyOrAdminMiddleware,
 	upload.single('picture'),
 	async (req: Request, res: Response) => {
 		try {

@@ -20,11 +20,6 @@ function extractBearerToken(req: Request): string | null {
     return authHeader.substring(7);
   }
 
-  const queryToken = req.query.token;
-  if (typeof queryToken === 'string' && queryToken.trim()) {
-    return queryToken.trim();
-  }
-
   return null;
 }
 
