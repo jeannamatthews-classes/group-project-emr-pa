@@ -45,7 +45,14 @@ import type {
   StudentCaseLab,
 } from "../services/casesApi";
 import { touchCase, sortByLastInteracted } from "../services/caseStorage";
-import { buildAuthenticatedAssetUrl, getDisplayName, isGuestModeEnabled, logout, getStoredToken } from "../services/authApi";
+import {
+  getDisplayName,
+  isGuestModeEnabled,
+  logout,
+  getStoredToken,
+  openAuthenticatedAsset,
+} from "../services/authApi";
+import { useAuthenticatedAssetUrl } from "../hooks/useAuthenticatedAssetUrl";
 
 // ─── Section config ───────────────────────────────────────────────────────────
 
@@ -118,10 +125,6 @@ function noteToFields(note: NoteData): NoteFields {
     grade: note.grade,
     feedback: note.feedback,
   };
-}
-
-function resolveAssetUrl(fileUrl: string | null | undefined): string {
-  return buildAuthenticatedAssetUrl(fileUrl);
 }
 
 function isImageLab(lab: { mimeType: string }): boolean {
@@ -208,6 +211,43 @@ function GradesFeedbackPanel({ grades }: { grades: GradeNote[] }) {
         </Card>
       ))}
     </Box>
+  );
+}
+
+function StudentLabImage({ lab }: { lab: StudentCaseLab }) {
+  const { assetUrl, error, loading } = useAuthenticatedAssetUrl(lab.fileUrl);
+
+  if (error) {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        This image preview could not be displayed here. Use Open Lab File to view it directly.
+      </Alert>
+    );
+  }
+
+  if (loading || !assetUrl) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      component="img"
+      src={assetUrl}
+      alt={lab.title}
+      sx={{
+        width: "100%",
+        maxHeight: 280,
+        objectFit: "contain",
+        borderRadius: 2,
+        border: "1px solid #dbe4f0",
+        bgcolor: "#f8fafc",
+        mb: 2,
+      }}
+    />
   );
 }
 
@@ -317,6 +357,9 @@ export default function Student() {
     message: "",
     severity: "success",
   });
+  const { assetUrl: selectedCasePictureUrl } = useAuthenticatedAssetUrl(
+    selectedCase?.profilePictureUrl ?? null
+  );
 
   // ─── Mount: fetch assigned cases + show login notifications ──────────────
   useEffect(() => {
@@ -420,6 +463,15 @@ export default function Student() {
       }
     }
   };
+
+  async function handleOpenLabFile(fileUrl: string) {
+    try {
+      setLabsError(null);
+      await openAuthenticatedAsset(fileUrl);
+    } catch (error) {
+      setLabsError(error instanceof Error ? error.message : "Failed to open lab file.");
+    }
+  }
 
   // ─── Section toggle ──────────────────────────────────────────────────────
   const toggleSection = (key: SectionKey) => {
@@ -724,11 +776,7 @@ export default function Student() {
             {/* ── Case Header ── */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
               <Avatar
-                src={
-                  selectedCase.profilePictureUrl
-                    ? resolveAssetUrl(selectedCase.profilePictureUrl)
-                    : undefined
-                }
+                src={selectedCasePictureUrl ?? undefined}
                 sx={{
                   width: 72,
                   height: 72,
@@ -774,11 +822,7 @@ export default function Student() {
               <CardContent>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
                   <Avatar
-                    src={
-                      selectedCase.profilePictureUrl
-                        ? resolveAssetUrl(selectedCase.profilePictureUrl)
-                        : undefined
-                    }
+                    src={selectedCasePictureUrl ?? undefined}
                     sx={{ width: 88, height: 88, fontSize: 30, bgcolor: "#1a3a5c", border: "2px solid #dbe4f0" }}
                   >
                     {!selectedCase.profilePictureUrl && getInitials(selectedCase)}
@@ -907,28 +951,10 @@ export default function Student() {
                                     {lab.description}
                                   </Typography>
                                 )}
-                                {isImageLab(lab) && (
-                                  <Box
-                                    component="img"
-                                    src={resolveAssetUrl(lab.fileUrl)}
-                                    alt={lab.title}
-                                    sx={{
-                                      width: "100%",
-                                      maxHeight: 280,
-                                      objectFit: "contain",
-                                      borderRadius: 2,
-                                      border: "1px solid #dbe4f0",
-                                      bgcolor: "#f8fafc",
-                                      mb: 2,
-                                    }}
-                                  />
-                                )}
+                                {isImageLab(lab) && <StudentLabImage lab={lab} />}
                                 <Button
                                   variant="outlined"
-                                  component="a"
-                                  href={resolveAssetUrl(lab.fileUrl)}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                  onClick={() => void handleOpenLabFile(lab.fileUrl)}
                                 >
                                   Open Lab File
                                 </Button>
