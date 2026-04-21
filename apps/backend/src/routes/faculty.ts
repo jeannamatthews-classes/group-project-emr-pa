@@ -167,6 +167,8 @@ async function loadPatientForFaculty(
           studentId: true,
           isSubmitted: true,
           submittedAt: true,
+          feedback: true,
+          grade: true,
         },
       },
     },
@@ -353,6 +355,8 @@ router.get('/cases', async (req: Request, res: Response) => {
             studentId: true,
             isSubmitted: true,
             submittedAt: true,
+            feedback: true,
+            grade: true,
           },
         },
       },
@@ -373,6 +377,9 @@ router.get('/cases', async (req: Request, res: Response) => {
           p.assignments.length - p.notes.filter((note) => note.isSubmitted).length,
           0
         ),
+        pendingReviewCount: p.notes.filter(
+          (note) => note.isSubmitted && note.feedback === null && note.grade === null
+        ).length,
         latestSubmittedAt:
           p.notes
             .filter((note) => note.submittedAt !== null)
@@ -1002,6 +1009,9 @@ router.get('/cases/:id', async (req: Request, res: Response) => {
         totalNoteCount: p.notes.length,
         submittedNoteCount: submittedNotes.length,
         pendingSubmissionCount: Math.max(p.assignments.length - submittedNotes.length, 0),
+        pendingReviewCount: submittedNotes.filter(
+          (note) => note.feedback === null && note.grade === null
+        ).length,
         latestSubmittedAt:
           submittedNotes.sort(
             (a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0)

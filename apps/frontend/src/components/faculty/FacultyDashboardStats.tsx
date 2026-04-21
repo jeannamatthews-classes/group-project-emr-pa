@@ -11,7 +11,7 @@ const STAT_ITEMS = [
   { label: "Students", key: "studentCount" },
   { label: "Number of Cases", key: "caseCount" },
   { label: "Submitted Notes", key: "submittedCount" },
-  { label: "Pending Submission", key: "pendingCount" },
+  { label: "Pending Review", key: "pendingCount" },
 ] as const;
 
 export default function FacultyDashboardStats({
