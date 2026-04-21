@@ -25,6 +25,10 @@ function canStudentSeePicture(userId: string, assignments: Array<{ studentId: st
   return assignments.some((assignment) => assignment.studentId === userId);
 }
 
+function canFacultyAccessFacultyCase(role: string | null, facultyCreatorId: string | null): boolean {
+  return (role === 'faculty' || role === 'admin') && facultyCreatorId !== null;
+}
+
 router.get('/*path', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -59,8 +63,7 @@ router.get('/*path', authMiddleware, async (req: Request, res: Response) => {
 
     if (patientPicture) {
       const canViewPicture =
-        role === 'admin' ||
-        patientPicture.facultyCreatorId === userId ||
+        canFacultyAccessFacultyCase(role, patientPicture.facultyCreatorId) ||
         canStudentSeePicture(userId, patientPicture.assignments);
 
       if (!canViewPicture) {
@@ -99,8 +102,7 @@ router.get('/*path', authMiddleware, async (req: Request, res: Response) => {
       (assignment) => assignment.studentId === userId
     );
     const canViewLab =
-      role === 'admin' ||
-      caseLab.patient.facultyCreatorId === userId ||
+      canFacultyAccessFacultyCase(role, caseLab.patient.facultyCreatorId) ||
       (isAssignedStudent && caseLab.isVisibleToStudent);
 
     if (!canViewLab) {

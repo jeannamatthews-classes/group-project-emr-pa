@@ -40,6 +40,10 @@ function paramString(id: string | string[] | undefined): string {
   return typeof raw === 'string' ? raw : String(raw ?? '');
 }
 
+function isFacultyWorkflowRole(role: string | undefined): boolean {
+  return role === 'faculty' || role === 'admin';
+}
+
 function noteToResponse(note: {
   id: string;
   patientId: number;
@@ -355,8 +359,13 @@ router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res:
       return;
     }
 
-    if (req.userRole !== 'admin' && existing.patient.facultyCreatorId !== req.userId) {
-      res.status(403).json({ error: 'You can only review notes for cases you created' });
+    if (!existing.patient.facultyCreatorId) {
+      res.status(403).json({ error: 'This note is not available in the faculty workflow' });
+      return;
+    }
+
+    if (!isFacultyWorkflowRole(req.userRole) && existing.patient.facultyCreatorId !== req.userId) {
+      res.status(403).json({ error: 'You do not have access to this note' });
       return;
     }
 
