@@ -6,6 +6,12 @@ import {
   resolveAssetUrl,
 } from "../services/authApi";
 
+type ProtectedAssetLoadState = {
+  sourceUrl: string | null;
+  assetUrl: string | null;
+  error: Error | null;
+};
+
 type AuthenticatedAssetState = {
   assetUrl: string | null;
   error: Error | null;
@@ -15,46 +21,36 @@ type AuthenticatedAssetState = {
 export function useAuthenticatedAssetUrl(
   fileUrl: string | null | undefined
 ): AuthenticatedAssetState {
-  const [state, setState] = useState<AuthenticatedAssetState>({
-    assetUrl: fileUrl && !isProtectedAssetUrl(fileUrl) ? resolveAssetUrl(fileUrl) : null,
+  const [protectedState, setProtectedState] = useState<ProtectedAssetLoadState>({
+    sourceUrl: null,
+    assetUrl: null,
     error: null,
-    loading: false,
   });
 
-  useEffect(() => {
-    if (!fileUrl) {
-      setState({ assetUrl: null, error: null, loading: false });
-      return;
-    }
+  const isProtectedAsset = Boolean(fileUrl && isProtectedAssetUrl(fileUrl));
 
-    if (!isProtectedAssetUrl(fileUrl)) {
-      setState({
-        assetUrl: resolveAssetUrl(fileUrl),
-        error: null,
-        loading: false,
-      });
+  useEffect(() => {
+    if (!fileUrl || !isProtectedAsset) {
       return;
     }
 
     const controller = new AbortController();
     let objectUrl: string | null = null;
 
-    setState({ assetUrl: null, error: null, loading: true });
-
     void fetchAuthenticatedAssetBlob(fileUrl, controller.signal)
       .then((blob) => {
         if (controller.signal.aborted) return;
 
         objectUrl = URL.createObjectURL(blob);
-        setState({ assetUrl: objectUrl, error: null, loading: false });
+        setProtectedState({ sourceUrl: fileUrl, assetUrl: objectUrl, error: null });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
 
-        setState({
+        setProtectedState({
+          sourceUrl: fileUrl,
           assetUrl: null,
           error: error instanceof Error ? error : new Error("Failed to load file."),
-          loading: false,
         });
       });
 
@@ -65,7 +61,29 @@ export function useAuthenticatedAssetUrl(
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [fileUrl]);
+  }, [fileUrl, isProtectedAsset]);
 
-  return state;
+  if (!fileUrl) {
+    return { assetUrl: null, error: null, loading: false };
+  }
+
+  if (!isProtectedAsset) {
+    return {
+      assetUrl: resolveAssetUrl(fileUrl),
+      error: null,
+      loading: false,
+    };
+  }
+
+  const isCurrentUrlResolved = protectedState.sourceUrl === fileUrl;
+
+  return {
+    assetUrl: isCurrentUrlResolved ? protectedState.assetUrl : null,
+    error: isCurrentUrlResolved ? protectedState.error : null,
+    loading:
+      !isCurrentUrlResolved ||
+      (isCurrentUrlResolved &&
+        protectedState.assetUrl === null &&
+        protectedState.error === null),
+  };
 }
