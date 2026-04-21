@@ -67,8 +67,8 @@ export default function useRegister(
       return null;
     }
 
-    if (password.length < 6) {
-      const message = "Password must be at least 6 characters.";
+    if (password.length < 8) {
+      const message = "Password must be at least 8 characters.";
       setError(message);
       onError?.(message);
       return null;

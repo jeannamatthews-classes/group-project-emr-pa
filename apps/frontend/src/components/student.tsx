@@ -430,7 +430,7 @@ export default function Student() {
 
     const [noteResult, labsResult] = await Promise.allSettled([
       getNote(token, c.id),
-      getStudentCaseLabs(token, c.id),
+      c.hasLabs ? getStudentCaseLabs(token, c.id) : Promise.resolve({ labs: [] }),
     ]);
 
     if (noteResult.status === "fulfilled" && noteResult.value) {
@@ -560,8 +560,7 @@ export default function Student() {
   const pblLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "pbl" && c.hasLabs));
   const simCases = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && !c.hasLabs));
   const simLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && c.hasLabs));
-  const showLabSection =
-    !!selectedCase && (selectedCase.hasLabs || caseLabs.length > 0 || labsLoading || !!labsError);
+  const showLabSection = Boolean(selectedCase?.hasLabs);
   const selectedPatientName = selectedCase?.patientName ?? selectedCase?.name ?? "";
   const selectedChiefComplaint = selectedCase?.caseTitle || "No chief complaint listed";
 
