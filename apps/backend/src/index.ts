@@ -10,14 +10,15 @@ import casesRoutes from './routes/cases';
 import adminRoutes from './routes/admin';
 import assignmentsRoutes from './routes/assignments';
 import facultyRoutes from './routes/faculty';
+import filesRoutes from './routes/files';
 import studentRoutes from './routes/student';
+import { uploadsRoot } from './routes/uploads';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const uploadsDir = path.resolve(__dirname, '../../uploads');
-fs.mkdirSync(uploadsDir, { recursive: true });
+fs.mkdirSync(uploadsRoot, { recursive: true });
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
   .split(',')
@@ -40,7 +41,7 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', filesRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'Server is running' });
@@ -76,8 +77,15 @@ app.use((req: Request, res: Response) => {
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
+  const isMulterError = err?.name === 'MulterError';
+  const status = isMulterError ? 400 : err.status || 500;
+  const errorMessage =
+    err?.code === 'LIMIT_FILE_SIZE'
+      ? 'Uploaded file is too large.'
+      : err?.message || 'Internal server error';
+
+  res.status(status).json({
+    error: errorMessage,
   });
 });
 

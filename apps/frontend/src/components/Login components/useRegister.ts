@@ -3,6 +3,8 @@ import { registerUser } from "../../services/authApi";
 
 type RegisterCredentials = {
   username: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -45,11 +47,13 @@ export default function useRegister(
     credentials: RegisterCredentials
   ): Promise<RegisterResult | null> => {
     const username = credentials.username.trim();
-    const email = credentials.email.trim();
+    const firstName = credentials.firstName.trim();
+    const lastName = credentials.lastName.trim();
+    const email = credentials.email.trim().toLowerCase();
     const password = credentials.password;
     const confirmPassword = credentials.confirmPassword;
 
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !firstName || !lastName || !email || !password || !confirmPassword) {
       const message = "All fields are required.";
       setError(message);
       onError?.(message);
@@ -76,6 +80,8 @@ export default function useRegister(
 
       const result = await registerUser({
         username,
+        firstName,
+        lastName,
         email,
         password,
         confirmPassword,

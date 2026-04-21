@@ -18,6 +18,10 @@ function parsePositiveInt(value: unknown): number | null {
   return null;
 }
 
+function isFacultyWorkflowRole(role: string | undefined): boolean {
+  return role === 'faculty' || role === 'admin';
+}
+
 // This one checks to see if the user has permission to manage the patient
 async function assertCanManagePatient(
   patientId: number,
@@ -27,7 +31,8 @@ async function assertCanManagePatient(
   // Find the patient by id
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   if (!patient) return { ok: false as const, reason: 'not_found' as const };
-  if (role === 'admin') return { ok: true as const, patient };
+  if (!patient.facultyCreatorId) return { ok: false as const, reason: 'forbidden' as const };
+  if (isFacultyWorkflowRole(role)) return { ok: true as const, patient };
   if (patient.facultyCreatorId === userId) return { ok: true as const, patient };
   return { ok: false as const, reason: 'forbidden' as const };
 }
@@ -51,33 +56,20 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Allows the admin to get all the assignments for all patients
-    if (req.userRole === 'admin') {
-      const assignments = await prisma.caseAssignment.findMany({
-        where: patientFilter ? { patientId: patientFilter } : undefined,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          patient: true,
-          student: { select: { id: true, username: true, email: true } },
-          assignedByFaculty: { select: { id: true, username: true, email: true } },
-        },
-      });
-      res.json({ assignments });
-      return;
-    }
-
-    // Allows the faculty to get all the assignments for their cases
-    const facultyId = req.userId as string;
     const assignments = await prisma.caseAssignment.findMany({
       where: {
-        patient: { facultyCreatorId: facultyId },
+        patient: {
+          facultyCreatorId: {
+            not: null,
+          },
+        },
         ...(patientFilter ? { patientId: patientFilter } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: {
         patient: true,
-        student: { select: { id: true, username: true, email: true } },
-        assignedByFaculty: { select: { id: true, username: true, email: true } },
+        student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+        assignedByFaculty: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -110,7 +102,7 @@ router.post('/', async (req: Request, res: Response) => {
         res.status(404).json({ error: 'Case not found' });
         return;
       }
-      res.status(403).json({ error: 'You can only assign students to cases you created' });
+      res.status(403).json({ error: 'This case is not available in the faculty workflow' });
       return;
     }
 
@@ -135,8 +127,8 @@ router.post('/', async (req: Request, res: Response) => {
       },
       include: {
         patient: true,
-        student: { select: { id: true, username: true, email: true } },
-        assignedByFaculty: { select: { id: true, username: true, email: true } },
+        student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+        assignedByFaculty: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -154,6 +146,79 @@ router.post('/', async (req: Request, res: Response) => {
     }
     console.error('POST /api/assignments error:', error);
     res.status(500).json({ error: 'Failed to create assignment' });
+  }
+});
+
+router.delete('/:assignmentId', async (req: Request, res: Response) => {
+  try {
+    const assignmentId = String(req.params.assignmentId ?? '').trim();
+    if (!assignmentId) {
+      res.status(400).json({ error: 'Invalid assignment id' });
+      return;
+    }
+
+    const assignment = await prisma.caseAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            facultyCreatorId: true,
+            name: true,
+            caseTitle: true,
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!assignment || !assignment.patient.facultyCreatorId) {
+      res.status(404).json({ error: 'Assignment not found' });
+      return;
+    }
+
+    if (!isFacultyWorkflowRole(req.userRole) && assignment.patient.facultyCreatorId !== req.userId) {
+      res.status(403).json({ error: 'This assignment is not available in the faculty workflow' });
+      return;
+    }
+
+    await prisma.$transaction([
+      prisma.note.deleteMany({
+        where: {
+          patientId: assignment.patientId,
+          studentId: assignment.studentId,
+        },
+      }),
+      prisma.caseAssignment.delete({
+        where: { id: assignmentId },
+      }),
+    ]);
+
+    res.json({
+      assignment: {
+        id: assignment.id,
+        patientId: assignment.patientId,
+        studentId: assignment.studentId,
+        patient: {
+          id: assignment.patient.id,
+          name: assignment.patient.name,
+          caseTitle: assignment.patient.caseTitle,
+        },
+        student: assignment.student,
+      },
+      deletedNote: true,
+    });
+  } catch (error) {
+    console.error('DELETE /api/assignments/:assignmentId error:', error);
+    res.status(500).json({ error: 'Failed to remove assignment' });
   }
 });
 

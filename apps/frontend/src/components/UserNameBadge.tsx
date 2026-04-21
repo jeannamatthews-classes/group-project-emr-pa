@@ -1,32 +1,32 @@
 import { Chip } from "@mui/material";
 import { useEffect, useState } from "react";
-import { getMe, getStoredToken } from "../services/authApi";
+import { getDisplayName, getMe, getStoredToken } from "../services/authApi";
 
 export default function UserNameBadge() {
-  const [username, setUsername] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const token = getStoredToken();
       if (!token) {
-        setUsername(null);
+        setDisplayName(null);
         return;
       }
 
       try {
         const me = await getMe(token);
-        setUsername(me.user.username);
+        setDisplayName(getDisplayName(me.user));
       } catch {
-        setUsername(null);
+        setDisplayName(null);
       }
     };
 
     void load();
   }, []);
 
-  if (!username) {
+  if (!displayName) {
     return null;
   }
 
-  return <Chip size="small" label={`username: ${username}`} variant="outlined" />;
+  return <Chip size="small" label={displayName} variant="outlined" />;
 }
