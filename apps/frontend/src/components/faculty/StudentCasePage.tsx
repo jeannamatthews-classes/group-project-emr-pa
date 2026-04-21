@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Box, CircularProgress, Stack } from "@mui/material";
 
-import { getMe, getStoredToken, logout } from "../../services/authApi";
+import { getMe, getStoredToken, logout, openAuthenticatedAsset } from "../../services/authApi";
 import {
   facultyDeleteCaseLab,
   facultyGetCase,
@@ -419,6 +419,15 @@ export default function StudentCasePage() {
     setImageLoadErrors((current) => ({ ...current, [labId]: true }));
   }
 
+  async function handleOpenLab(lab: FacultyCaseLab) {
+    try {
+      setLabError(null);
+      await openAuthenticatedAsset(lab.fileUrl);
+    } catch (error) {
+      setLabError(error instanceof Error ? error.message : "Failed to open lab file.");
+    }
+  }
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f4f7fb" }}>
       <FacultyPageTopBar
@@ -472,6 +481,7 @@ export default function StudentCasePage() {
               onLabFileChange={handleLabFileChange}
               onLabVisibleToStudentChange={setLabVisibleToStudent}
               onUploadLab={() => void handleUploadLab()}
+              onOpenLab={(lab) => void handleOpenLab(lab)}
               onToggleLabVisibility={(lab) => void handleToggleLabVisibility(lab)}
               onDeleteLab={(lab) => void handleDeleteLab(lab)}
               onEditLab={openEditLabDialog}

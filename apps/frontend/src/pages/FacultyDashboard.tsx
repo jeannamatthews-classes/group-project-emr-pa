@@ -2,7 +2,8 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 
-import { buildAuthenticatedAssetUrl, getDisplayName, getMe, getStoredToken, logout } from "../services/authApi";
+import { getDisplayName, getMe, getStoredToken, logout } from "../services/authApi";
+import { useAuthenticatedAssetUrl } from "../hooks/useAuthenticatedAssetUrl";
 import {
   facultyCreateCase,
   facultyGetCase,
@@ -39,6 +40,7 @@ export default function FacultyDashboard() {
   const [caseForm, setCaseForm] = useState<FacultyCaseFormState>(DEFAULT_FACULTY_CASE_FORM);
   const [pictureFile, setPictureFile] = useState<File | null>(null);
   const [picturePreview, setPicturePreview] = useState<string | null>(null);
+  const { assetUrl: resolvedPicturePreview } = useAuthenticatedAssetUrl(picturePreview);
 
   useEffect(() => {
     let active = true;
@@ -149,9 +151,7 @@ export default function FacultyDashboard() {
         hasLabs: nextCase.hasLabs,
       });
       setPictureFile(null);
-      setPicturePreview(
-        nextCase.profilePictureUrl ? buildAuthenticatedAssetUrl(nextCase.profilePictureUrl) : null
-      );
+      setPicturePreview(nextCase.profilePictureUrl ?? null);
       setCaseDialogOpen(true);
     } catch (loadError) {
       setActionError(loadError instanceof Error ? loadError.message : "Failed to load case.");
@@ -319,7 +319,7 @@ export default function FacultyDashboard() {
         editingCaseId={editingCaseId}
         savingCase={savingCase}
         caseForm={caseForm}
-        picturePreview={picturePreview}
+        picturePreview={resolvedPicturePreview}
         onClose={handleCloseCaseDialog}
         onSave={() => void handleSaveCase()}
         onPictureChange={handlePictureChange}

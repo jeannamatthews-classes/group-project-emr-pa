@@ -234,22 +234,91 @@ export function setStoredToken(token: string, storageKey = "auth_token"): void {
   localStorage.setItem(storageKey, token);
 }
 
-export function buildAuthenticatedAssetUrl(fileUrl: string | null | undefined): string {
+function getApiHost(): string {
+  return AUTH_BASE_URL.replace(/\/api\/auth\/?$/, "").replace(/\/api\/?$/, "");
+}
+
+export function resolveAssetUrl(fileUrl: string | null | undefined): string {
   if (!fileUrl) return "";
 
-  const apiHost = AUTH_BASE_URL
-    .replace(/\/api\/auth\/?$/, "")
-    .replace(/\/api\/?$/, "");
-  const resolved = /^https?:\/\//i.test(fileUrl) ? fileUrl : `${apiHost}${fileUrl}`;
-  const token = getStoredToken();
-
-  if (!token) {
-    return resolved;
+  if (/^(?:blob:|data:|https?:\/\/)/i.test(fileUrl)) {
+    return fileUrl;
   }
 
-  const url = new URL(resolved);
-  url.searchParams.set("token", token);
-  return url.toString();
+  const normalizedPath = fileUrl.startsWith("/") ? fileUrl : `/${fileUrl}`;
+  return `${getApiHost()}${normalizedPath}`;
+}
+
+export function isProtectedAssetUrl(fileUrl: string | null | undefined): boolean {
+  if (!fileUrl) return false;
+  if (/^(?:blob:|data:)/i.test(fileUrl)) return false;
+
+  try {
+    return new URL(resolveAssetUrl(fileUrl)).pathname.startsWith("/uploads/");
+  } catch {
+    return false;
+  }
+}
+
+async function parseAssetError(response: Response): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const data = (await response.json()) as ApiErrorResponse;
+    return data.error || data.details || "Failed to load file";
+  }
+
+  const message = (await response.text()).trim();
+  return message || "Failed to load file";
+}
+
+export async function fetchAuthenticatedAssetBlob(
+  fileUrl: string,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const token = getStoredToken();
+  if (!token) {
+    throw new Error("You are not logged in.");
+  }
+
+  const response = await fetch(resolveAssetUrl(fileUrl), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseAssetError(response));
+  }
+
+  return response.blob();
+}
+
+export async function openAuthenticatedAsset(fileUrl: string | null | undefined): Promise<void> {
+  if (!fileUrl) {
+    throw new Error("File URL is missing.");
+  }
+
+  const blob = await fetchAuthenticatedAssetBlob(fileUrl);
+  const objectUrl = URL.createObjectURL(blob);
+  const popup = window.open(objectUrl, "_blank", "noopener,noreferrer");
+
+  if (!popup) {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.click();
+  }
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 60_000);
+}
+
+export function buildAuthenticatedAssetUrl(fileUrl: string | null | undefined): string {
+  return resolveAssetUrl(fileUrl);
 }
 
 export function getDisplayName(user: {
