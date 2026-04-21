@@ -207,6 +207,11 @@ export default function StudentCasePage() {
       return;
     }
 
+    if (!caseDetail.hasLabs) {
+      setLabError('Turn on "Case with Labs" before uploading labs.');
+      return;
+    }
+
     if (!labFile) {
       setLabError("Choose a lab file before uploading.");
       return;
@@ -238,7 +243,6 @@ export default function StudentCasePage() {
         delete next[lab.id];
         return next;
       });
-      setCaseDetail((current) => (current ? { ...current, hasLabs: true } : current));
       setLabTitle("");
       setLabCategory("");
       setLabDescription("");
@@ -312,18 +316,7 @@ export default function StudentCasePage() {
       setLabMessage(null);
       await facultyDeleteCaseLab(token, caseDetail.id, lab.id);
 
-      setLabs((current) => {
-        const next = current.filter((item) => item.id !== lab.id);
-        setCaseDetail((existing) =>
-          existing
-            ? {
-                ...existing,
-                hasLabs: next.length > 0,
-              }
-            : existing
-        );
-        return next;
-      });
+      setLabs((current) => current.filter((item) => item.id !== lab.id));
       setImageLoadErrors((current) => {
         const next = { ...current };
         delete next[lab.id];
@@ -463,6 +456,7 @@ export default function StudentCasePage() {
             />
 
             <FacultyCaseLabsCard
+              caseHasLabs={caseDetail.hasLabs}
               labs={labs}
               labTitle={labTitle}
               labCategory={labCategory}
