@@ -7,21 +7,40 @@ import { createAuditLog } from '../services/auditLogService';
 //renamed branch
 const router = express.Router();
 
+function normalizeNamePart(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getUserDisplayName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  username: string;
+}): string {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return fullName || user.username;
+}
+
 /**
  * Code to register a new user
  */
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const { username, email, password, confirmPassword } = body as {
+    const { username, firstName, lastName, email, password, confirmPassword } = body as {
       username?: string;
+      firstName?: string;
+      lastName?: string;
       email?: string;
       password?: string;
       confirmPassword?: string;
     };
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    const normalizedFirstName = normalizeNamePart(firstName);
+    const normalizedLastName = normalizeNamePart(lastName);
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     // Validation
-    if (!username || !email || !password || !confirmPassword) {
+    if (!normalizedUsername || !normalizedFirstName || !normalizedLastName || !normalizedEmail || !password || !confirmPassword) {
       res.status(400).json({ error: 'All fields are required' });
       return;
     }
@@ -39,7 +58,7 @@ router.post('/register', async (req: Request, res: Response) => {
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        OR: [{ email: normalizedEmail }, { username: normalizedUsername }],
       },
     });
 
@@ -52,8 +71,10 @@ router.post('/register', async (req: Request, res: Response) => {
     const hashedPassword = await hashPassword(password);
     const user = await prisma.user.create({
       data: {
-        username,
-        email,
+        username: normalizedUsername,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
+        email: normalizedEmail,
         password: hashedPassword,
         role: 'unassigned',
       },
@@ -61,7 +82,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     await createAuditLog({
       eventType: 'USER_REGISTERED',
-      message: `User ${user.username} registered`,
+      message: `User ${getUserDisplayName(user)} registered`,
       targetUserId: user.id,
     });
 
@@ -73,6 +94,8 @@ router.post('/register', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
       },
@@ -98,16 +121,17 @@ router.post('/login', async (req: Request, res: Response) => {
       email?: string;
       password?: string;
     };
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     // Validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       res.status(400).json({ error: 'Email and password are required' });
       return;
     }
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
@@ -131,6 +155,8 @@ router.post('/login', async (req: Request, res: Response) => {
       user: {
         id: user.id,
         username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
       },
@@ -156,6 +182,8 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       select: {
         id: true,
         username: true,
+        firstName: true,
+        lastName: true,
         email: true,
         role: true,
         createdAt: true,
@@ -171,6 +199,97 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+router.patch('/me', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const firstName = normalizeNamePart((body as { firstName?: string }).firstName);
+    const lastName = normalizeNamePart((body as { lastName?: string }).lastName);
+
+    if (!firstName || !lastName) {
+      res.status(400).json({ error: 'First name and last name are required' });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.userId },
+      data: {
+        firstName,
+        lastName,
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+router.post('/change-password', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const currentPassword = (body as { currentPassword?: string }).currentPassword;
+    const newPassword = (body as { newPassword?: string }).newPassword;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current password and new password are required' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: 'New password must be at least 8 characters' });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      res.status(400).json({ error: 'New password must be different from current password' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: {
+        id: true,
+        password: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const passwordMatch = await comparePassword(currentPassword, user.password);
+    if (!passwordMatch) {
+      res.status(400).json({ error: 'Current password is incorrect' });
+      return;
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change own password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

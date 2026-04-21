@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
+import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
 
 const router = express.Router();
 
@@ -39,6 +40,10 @@ function paramString(id: string | string[] | undefined): string {
   return typeof raw === 'string' ? raw : String(raw ?? '');
 }
 
+function isFacultyWorkflowRole(role: string | undefined): boolean {
+  return role === 'faculty' || role === 'admin';
+}
+
 function noteToResponse(note: {
   id: string;
   patientId: number;
@@ -69,6 +74,27 @@ function noteToResponse(note: {
     assess: note.assessment ?? '',
     treat: note.treatmentPlan ?? '',
   };
+}
+
+async function isStudentAssignedToCase(studentId: string, caseId: number): Promise<boolean> {
+  const assignment = await prisma.caseAssignment.findUnique({
+    where: {
+      patientId_studentId: {
+        patientId: caseId,
+        studentId,
+      },
+    },
+    select: {
+      id: true,
+      patient: {
+        select: {
+          facultyCreatorId: true,
+        },
+      },
+    },
+  });
+
+  return Boolean(assignment && assignment.patient.facultyCreatorId);
 }
 
 router.use(authMiddleware);
@@ -102,16 +128,17 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const isAssigned = await isStudentAssignedToCase(studentId, caseIdParsed);
+    if (!isAssigned) {
+      res.status(403).json({ error: 'You can only access notes for cases assigned to you' });
+      return;
+    }
+
     const note = await prisma.note.findUnique({
       where: { studentId_patientId: { studentId, patientId: caseIdParsed } },
     });
 
-    if (!note) {
-      res.status(404).json({ error: 'No note found for this case' });
-      return;
-    }
-
-    res.json({ note: noteToResponse(note) });
+    res.json({ note: note ? noteToResponse(note) : null });
   } catch (error) {
     console.error('GET /api/notes error:', error);
     res.status(500).json({ error: 'Failed to fetch notes' });
@@ -147,6 +174,12 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const isAssigned = await isStudentAssignedToCase(studentId, caseIdParsed);
+    if (!isAssigned) {
+      res.status(403).json({ error: 'You can only write notes for cases assigned to you' });
+      return;
+    }
+
     const data = {
       hpi,
       physicalExam: exam,
@@ -163,11 +196,23 @@ router.post('/', async (req: Request, res: Response) => {
       learningIssues: str(body.learningIssues),
     };
 
-    const note = await prisma.note.upsert({
+    const existing = await prisma.note.findUnique({
       where: { studentId_patientId: { studentId, patientId: caseIdParsed } },
-      update: data,
-      create: { studentId, patientId: caseIdParsed, ...data },
     });
+
+    if (existing?.isSubmitted) {
+      res.status(403).json({ error: 'Cannot edit a submitted note' });
+      return;
+    }
+
+    const note = existing
+      ? await prisma.note.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await prisma.note.create({
+          data: { studentId, patientId: caseIdParsed, ...data },
+        });
 
     res.json({ note: noteToResponse(note) });
   } catch (error) {
@@ -268,29 +313,20 @@ router.post('/:id/submit', async (req: Request, res: Response) => {
 });
 
 // POST /api/notes/:id/feedback — faculty adds feedback and/or grade
-router.post('/:id/feedback', async (req: Request, res: Response) => {
+router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res: Response) => {
   try {
-    const userId = req.userId;
-    if (!userId) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
-    }
-
-    // Only faculty or admin can give feedback
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-    if (!user || (user.role !== 'faculty' && user.role !== 'admin')) {
-      res.status(403).json({ error: 'Only faculty or admin can give feedback' });
-      return;
-    }
-
     const noteId = paramString(req.params.id);
     const body = (req.body ?? {}) as { feedback?: unknown; grade?: unknown };
     const feedback = str(body.feedback);
-    const grade =
-      typeof body.grade === 'number' && body.grade >= 0 && body.grade <= 100
+    const rawGrade =
+      typeof body.grade === 'number'
         ? body.grade
-        : typeof body.grade === 'string' && !isNaN(Number(body.grade))
+        : typeof body.grade === 'string' && body.grade.trim()
         ? Number(body.grade)
+        : null;
+    const grade =
+      rawGrade !== null && Number.isFinite(rawGrade) && rawGrade >= 0 && rawGrade <= 100
+        ? rawGrade
         : null;
 
     if (feedback === null && grade === null) {
@@ -298,9 +334,38 @@ router.post('/:id/feedback', async (req: Request, res: Response) => {
       return;
     }
 
-    const existing = await prisma.note.findUnique({ where: { id: noteId } });
+    if (rawGrade !== null && grade === null) {
+      res.status(400).json({ error: 'grade must be a number between 0 and 100' });
+      return;
+    }
+
+    const existing = await prisma.note.findUnique({
+      where: { id: noteId },
+      include: {
+        patient: {
+          select: {
+            facultyCreatorId: true,
+          },
+        },
+      },
+    });
     if (!existing) {
       res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+
+    if (!existing.isSubmitted) {
+      res.status(409).json({ error: 'Cannot review a note until the student submits it' });
+      return;
+    }
+
+    if (!existing.patient.facultyCreatorId) {
+      res.status(403).json({ error: 'This note is not available in the faculty workflow' });
+      return;
+    }
+
+    if (!isFacultyWorkflowRole(req.userRole) && existing.patient.facultyCreatorId !== req.userId) {
+      res.status(403).json({ error: 'You do not have access to this note' });
       return;
     }
 

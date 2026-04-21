@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Collapse from "@mui/material/Collapse";
 import {
@@ -10,7 +10,9 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Drawer,
+  //IconButton,
   List,
   ListItemButton,
   ListItemText,
@@ -24,18 +26,26 @@ import {
 import LogoutIcon from "@mui/icons-material/Logout";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+//import MenuIcon from "@mui/icons-material/Menu";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 import {
   getStudentCases,
+  getStudentCaseLabs,
   getNote,
   saveNote,
   submitNote,
   getStudentGrades,
 } from "../services/casesApi";
-import type { AssignedCase, NoteData, GradeNote, SaveNotePayload } from "../services/casesApi";
+import type {
+  AssignedCase,
+  NoteData,
+  GradeNote,
+  SaveNotePayload,
+  StudentCaseLab,
+} from "../services/casesApi";
 import { touchCase, sortByLastInteracted } from "../services/caseStorage";
-import { isGuestModeEnabled, logout, getStoredToken } from "../services/authApi";
-import { mockCases } from "./Imports";
+import { buildAuthenticatedAssetUrl, getDisplayName, isGuestModeEnabled, logout, getStoredToken } from "../services/authApi";
 
 // ─── Section config ───────────────────────────────────────────────────────────
 
@@ -45,6 +55,13 @@ type SectionKey =
   | "treat" | "cab" | "learn";
 
 type NoteField = keyof SaveNotePayload;
+type NoteFields = SaveNotePayload & {
+  id?: string;
+  isSubmitted?: boolean;
+  submittedAt?: string | null;
+  grade?: number | null;
+  feedback?: string | null;
+};
 
 const SECTIONS: { key: SectionKey; label: string; field: NoteField }[] = [
   { key: "hpi",   label: "HPI",                field: "hpi" },
@@ -70,30 +87,16 @@ const DEFAULT_OPEN: OpenSections = {
   treat: false, cab: false, learn: false,
 };
 
-type PortalCase = AssignedCase & {
-  isExample?: boolean;
-  mockCaseId?: number;
-};
-
-const EXAMPLE_CASES: PortalCase[] = mockCases.map((c, index) => ({
-  id: -(index + 1),
-  caseTitle: c.title,
-  name: c.patient,
-  caseType: "pbl",
-  hasLabs: false,
-  profilePictureUrl: null,
-  isExample: true,
-  mockCaseId: c.id,
-}));
+type PortalCase = AssignedCase;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(c: AssignedCase): string {
-  const name = c.caseTitle || c.name;
+  const name = c.patientName ?? c.name;
   return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-function noteToFields(note: NoteData): SaveNotePayload & { id?: string; isSubmitted?: boolean } {
+function noteToFields(note: NoteData): NoteFields {
   return {
     id: note.id,
     caseId: note.caseId ?? note.patientId,
@@ -111,6 +114,36 @@ function noteToFields(note: NoteData): SaveNotePayload & { id?: string; isSubmit
     codingAndBilling: note.codingAndBilling,
     learningIssues: note.learningIssues,
     isSubmitted: note.isSubmitted,
+    submittedAt: note.submittedAt,
+    grade: note.grade,
+    feedback: note.feedback,
+  };
+}
+
+function resolveAssetUrl(fileUrl: string | null | undefined): string {
+  return buildAuthenticatedAssetUrl(fileUrl);
+}
+
+function isImageLab(lab: { mimeType: string }): boolean {
+  return lab.mimeType.startsWith("image/");
+}
+
+function toSavePayload(note: NoteFields): SaveNotePayload {
+  return {
+    caseId: note.caseId,
+    hpi: note.hpi,
+    exam: note.exam,
+    assessment: note.assessment,
+    treatmentPlan: note.treatmentPlan,
+    medications: note.medications,
+    allergies: note.allergies,
+    familyHistory: note.familyHistory,
+    socialHistory: note.socialHistory,
+    procedures: note.procedures,
+    diagnosis: note.diagnosis,
+    labAndDiagnostics: note.labAndDiagnostics,
+    codingAndBilling: note.codingAndBilling,
+    learningIssues: note.learningIssues,
   };
 }
 
@@ -130,13 +163,13 @@ function GradesFeedbackPanel({ grades }: { grades: GradeNote[] }) {
   return (
     <Box sx={{ mt: 2 }}>
       {grades.map((g) => (
-        <Card key={g.id} variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
+          <Card key={g.id} variant="outlined" sx={{ mb: 2, borderRadius: 2 }}>
           <CardContent>
             <Typography variant="h6" fontWeight={600}>
-              {g.patient.caseTitle || g.patient.name}
+              {g.patient.patientName ?? g.patient.name}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Patient: {g.patient.name}
+              {g.patient.caseTitle || "No chief complaint listed"}
             </Typography>
             {g.submittedAt && (
               <Typography variant="body2" color="text.secondary">
@@ -189,11 +222,11 @@ function CaseGroup({
   onSelect,
 }: {
   label: string;
-  cases: AssignedCase[];
+  cases: PortalCase[];
   selectedId: number | null;
   open: boolean;
   onToggle: () => void;
-  onSelect: (c: AssignedCase) => void;
+  onSelect: (c: PortalCase) => void;
 }) {
   if (cases.length === 0) return null;
 
@@ -216,8 +249,8 @@ function CaseGroup({
               sx={{ borderRadius: 1.5, mb: 0.25 }}
             >
               <ListItemText
-                primary={c.caseTitle || c.name}
-                secondary={`Patient: ${c.name}`}
+                primary={c.patientName ?? c.name}
+                secondary={c.caseTitle || "No chief complaint listed"}
                 slotProps={{
                   primary: { variant: "body2" },
                   secondary: { variant: "caption" },
@@ -236,20 +269,27 @@ function CaseGroup({
 export default function Student() {
   const navigate = useNavigate();
   const isGuestUser = !getStoredToken();
+  const appBarOffset = { xs: "56px", sm: "64px" };
 
   // ── cases & selection
-  const [cases, setCases] = useState<PortalCase[]>(EXAMPLE_CASES);
+  const [cases, setCases] = useState<PortalCase[]>([]);
   const [selectedCase, setSelectedCase] = useState<PortalCase | null>(null);
+  const [examSelected, setExamSelected] = useState(false);
   const [, setInteractionVersion] = useState(0);
 
   // ── current note form
-  type NoteFields = SaveNotePayload & { id?: string; isSubmitted?: boolean };
   const [noteFields, setNoteFields] = useState<NoteFields>({ caseId: 0, hpi: "", exam: "" });
+  const [caseLabs, setCaseLabs] = useState<StudentCaseLab[]>([]);
+  const [labsLoading, setLabsLoading] = useState(false);
+  const [labsError, setLabsError] = useState<string | null>(null);
 
   // ── tabs
   const [activeTab, setActiveTab] = useState<0 | 1>(0);
   const [grades, setGrades] = useState<GradeNote[]>([]);
   const [gradesLoaded, setGradesLoaded] = useState(false);
+
+  // ── sidebar visibility toggle
+  const [sidebarVisible] = useState(true);
 
   // ── sidebar collapse state
   const [sidebarOpen, setSidebarOpen] = useState({
@@ -268,9 +308,7 @@ export default function Student() {
   // ── snackbars
   const [loginSuccessOpen, setLoginSuccessOpen] = useState(() => {
     const isFreshLogin = sessionStorage.getItem("emr_login_success") === "true";
-    if (isFreshLogin) {
-      sessionStorage.removeItem("emr_login_success");
-    }
+    if (isFreshLogin) sessionStorage.removeItem("emr_login_success");
     return isFreshLogin;
   });
   const [assignmentNotice, setAssignmentNotice] = useState<string | null>(null);
@@ -282,70 +320,93 @@ export default function Student() {
 
   // ─── Mount: fetch assigned cases + show login notifications ──────────────
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      setAssignmentNotice("Guest view enabled. Example cases are available in read-only mode.");
-      return;
-    }
+    let active = true;
 
-    getStudentCases(token)
-      .then(({ assignments }) => {
+    async function loadAssignedCases() {
+      const token = getStoredToken();
+      if (!token) {
+        if (!active) return;
+        setCases([]);
+        setAssignmentNotice("Sign in to view your assigned cases.");
+        return;
+      }
+
+      try {
+        const { assignments } = await getStudentCases(token);
+        if (!active) return;
+
         const caseList = assignments.map((a) => a.patient as PortalCase);
-        const mergedCases = [...EXAMPLE_CASES, ...caseList];
-        setCases(mergedCases);
+        setCases(caseList);
 
         const pbl = caseList.filter((c) => c.caseType === "pbl").length;
         const sim = caseList.filter((c) => c.caseType === "sim").length;
 
         if (caseList.length === 0) {
-          setAssignmentNotice("No faculty cases assigned yet. Example cases are still available.");
+          setAssignmentNotice("No faculty cases assigned yet.");
         } else {
-          setAssignmentNotice(
-            `You have ${pbl} PBL case(s) and ${sim} SIM case(s) assigned, plus example cases.`
-          );
+          setAssignmentNotice(`You have ${pbl} PBL case(s) and ${sim} SIM case(s) assigned.`);
         }
-      })
-      .catch((err: unknown) => {
-        // Only redirect to login on authentication errors
+      } catch (err: unknown) {
+        if (!active) return;
+
         const msg = err instanceof Error ? err.message.toLowerCase() : "";
         if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("not authenticated")) {
-          setAssignmentNotice("Guest view enabled. Example cases are available in read-only mode.");
+          setCases([]);
+          setAssignmentNotice("Sign in to view your assigned cases.");
         } else {
-          // Non-auth error (network, server down, etc.) — stay on page, show empty state
+          setCases([]);
           setAssignmentNotice("Could not load cases. Please check your connection.");
         }
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      }
+    }
+
+    void loadAssignedCases();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // ─── Case selection ──────────────────────────────────────────────────────
   const handleCaseSelect = async (c: PortalCase) => {
     touchCase(c.id);
     setInteractionVersion((v) => v + 1);
     setSelectedCase(c);
+    setExamSelected(false);
     setActiveTab(0);
     setNoteFields({ caseId: c.id, hpi: "", exam: "" });
+    setCaseLabs([]);
+    setLabsError(null);
 
-    if (c.isExample) {
-      // Keep examples visible but start with empty fields on student side.
-      setNoteFields({ caseId: c.id, hpi: "", exam: "" });
+    const token = getStoredToken();
+    if (!token) {
+      setLabsLoading(false);
       return;
     }
 
-    const token = getStoredToken();
-    if (!token) return;
+    setLabsLoading(true);
 
-    try {
-      const result = await getNote(token, c.id);
-      if (result) {
-        setNoteFields(noteToFields(result.note));
-      }
-    } catch {
-      // No existing note — start fresh
+    const [noteResult, labsResult] = await Promise.allSettled([
+      getNote(token, c.id),
+      getStudentCaseLabs(token, c.id),
+    ]);
+
+    if (noteResult.status === "fulfilled" && noteResult.value) {
+      setNoteFields(noteToFields(noteResult.value.note));
     }
+
+    if (labsResult.status === "fulfilled") {
+      setCaseLabs(labsResult.value.labs);
+    } else {
+      setLabsError(
+        labsResult.reason instanceof Error ? labsResult.reason.message : "Failed to load labs."
+      );
+    }
+
+    setLabsLoading(false);
   };
 
   // ─── Tab change ──────────────────────────────────────────────────────────
-  const handleTabChange = (_: React.SyntheticEvent, newVal: 0 | 1) => {
+  const handleTabChange = (_: SyntheticEvent, newVal: 0 | 1) => {
     setActiveTab(newVal);
     if (newVal === 1 && !gradesLoaded) {
       const token = getStoredToken();
@@ -378,23 +439,17 @@ export default function Student() {
     if (!token) {
       setSaveSnack({
         open: true,
-        message: "Guest view is read-only. Sign in to save notes.",
-        severity: "info",
-      });
-      return;
-    }
-
-    if (selectedCase.isExample) {
-      setSaveSnack({
-        open: true,
-        message: "Example cases are read-only samples.",
+        message: "Sign in to save notes.",
         severity: "info",
       });
       return;
     }
 
     try {
-      const { note } = await saveNote(token, { ...noteFields, caseId: selectedCase.id });
+      const { note } = await saveNote(token, {
+        ...toSavePayload(noteFields),
+        caseId: selectedCase.id,
+      });
       setNoteFields(noteToFields(note));
       setSaveSnack({ open: true, message: "Notes saved successfully.", severity: "success" });
     } catch (err) {
@@ -412,7 +467,7 @@ export default function Student() {
     if (!token) {
       setSaveSnack({
         open: true,
-        message: "Guest view is read-only. Sign in to submit assignments.",
+        message: "Sign in to submit assignments.",
         severity: "info",
       });
       return;
@@ -420,18 +475,9 @@ export default function Student() {
 
     if (!noteFields.id) return;
 
-    if (selectedCase?.isExample) {
-      setSaveSnack({
-        open: true,
-        message: "Example cases cannot be submitted.",
-        severity: "error",
-      });
-      return;
-    }
-
     try {
       const { note } = await submitNote(token, noteFields.id);
-      setNoteFields((prev) => ({ ...prev, isSubmitted: note.isSubmitted }));
+      setNoteFields(noteToFields(note));
       setGradesLoaded(false); // invalidate grades cache
       setSaveSnack({
         open: true,
@@ -462,6 +508,10 @@ export default function Student() {
   const pblLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "pbl" && c.hasLabs));
   const simCases = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && !c.hasLabs));
   const simLabs  = sortByLastInteracted(filtered.filter((c) => c.caseType === "sim" && c.hasLabs));
+  const showLabSection =
+    !!selectedCase && (selectedCase.hasLabs || caseLabs.length > 0 || labsLoading || !!labsError);
+  const selectedPatientName = selectedCase?.patientName ?? selectedCase?.name ?? "";
+  const selectedChiefComplaint = selectedCase?.caseTitle || "No chief complaint listed";
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -472,31 +522,56 @@ export default function Student() {
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: "#1a3a5c" }}
       >
         <Toolbar>
-          <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
-            EMR Student Portal
-          </Typography>
-          <Button
+          {/* <IconButton
             color="inherit"
-            onClick={() => navigate(isGuestModeEnabled() ? "/portal" : "/login")}
-            sx={{ mr: 1 }}
+            onClick={() => setSidebarVisible((v) => !v)} // just hiding this sidebar
+            sx={{ mr: 1 }} // it is kind of pointless. b/c there is enough space 
+          > // and there is no dynamic resizing when it is hidden, so it just leaves an empty gap. better to just let it be permanently visible for now.
+            <MenuIcon /> 
+          </IconButton> */}
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            sx={{ flexGrow: 1, cursor: "pointer" }}
+            onClick={() => navigate("/student")}
           >
-            {isGuestModeEnabled() ? "Back to Portal" : "Back to Login"}
-          </Button>
+            EMR Student Dashboard
+          </Typography>
+          {isGuestModeEnabled() && (
+            <Button
+              color="inherit"
+              onClick={() => navigate("/portal")}
+              sx={{ mr: 1, textTransform: "none", fontWeight: 600 }}
+            >
+              Back
+            </Button>
+          )}
+          {!isGuestModeEnabled() && (
+            <Button
+              color="inherit"
+              startIcon={<SettingsIcon />}
+              onClick={() => navigate("/settings")}
+              sx={{ textTransform: "none", fontWeight: 600, mr: 1 }}
+            >
+              Settings
+            </Button>
+          )}
           <Button
             color="inherit"
             startIcon={<LogoutIcon />}
             onClick={handleLogout}
             sx={{ textTransform: "none", fontWeight: 600 }}
           >
-            Exit
+            Logout
           </Button>
         </Toolbar>
       </AppBar>
 
       {/* ── Left Sidebar ── */}
       <Drawer
-        variant="permanent"
+        variant="persistent"
         anchor="left"
+        open={sidebarVisible}
         slotProps={{
           paper: {
             sx: {
@@ -504,12 +579,15 @@ export default function Student() {
               boxSizing: "border-box",
               borderRight: "1px solid #dbe4f0",
               bgcolor: "#ffffff",
-              mt: "64px", // offset for AppBar
+              top: appBarOffset,
+              height: { xs: "calc(100dvh - 56px)", sm: "calc(100dvh - 64px)" },
+              overflowY: "auto",
+              overscrollBehavior: "contain",
             },
           },
         }}
       >
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ p: 2, pb: 6 }}>
           <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5, color: "text.secondary" }}>
             MY CASES
           </Typography>
@@ -580,18 +658,65 @@ export default function Student() {
               No cases assigned yet.
             </Typography>
           )}
+
+          {/* Exams section */}
+          <Box sx={{ mt: 2, borderTop: "1px solid #dbe4f0", pt: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{ px: 1, color: "#1a3a5c", fontWeight: 700, letterSpacing: 1 }}
+            >
+              Exams
+            </Typography>
+            <List disablePadding sx={{ mt: 0.5 }}>
+              <ListItemButton
+                selected={examSelected}
+                onClick={() => { setExamSelected(true); setSelectedCase(null); }}
+                sx={{ borderRadius: 1.5 }}
+              >
+                <ListItemText
+                  primary="My Exams"
+                  slotProps={{ primary: { variant: "body2" } }}
+                />
+              </ListItemButton>
+            </List>
+          </Box>
         </Box>
       </Drawer>
 
       {/* ── Main Content ── */}
-      <Box sx={{ flex: 1, ml: "280px", p: 4, mt: "64px" }}>
-        {!selectedCase ? (
+      <Box
+        sx={{
+          flex: 1,
+          ml: sidebarVisible ? "280px" : 0,
+          p: { xs: 2.5, sm: 4 },
+          mt: appBarOffset,
+          transition: "margin 0.2s ease",
+        }}
+      >
+        {examSelected ? (
           <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h5" color="text.secondary" gutterBottom>
-              Welcome to the EMR Student Portal
+              No Exam Available
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              Select a case from the sidebar to begin.
+              You will be notified when you receive an exam.
+            </Typography>
+          </Box>
+        ) : !selectedCase ? (
+          <Box sx={{ textAlign: "center", mt: 8 }}>
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              {cases.length === 0
+                ? isGuestUser
+                  ? "Sign in to view your cases"
+                  : "No assigned cases yet"
+                : "Welcome to the EMR Student Portal"}
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              {cases.length === 0
+                ? isGuestUser
+                  ? "This page now shows real faculty-assigned cases only."
+                  : "Your assigned cases will appear here once faculty adds them."
+                : "Select a case from the sidebar to begin."}
             </Typography>
           </Box>
         ) : (
@@ -601,7 +726,7 @@ export default function Student() {
               <Avatar
                 src={
                   selectedCase.profilePictureUrl
-                    ? `http://localhost:5001${selectedCase.profilePictureUrl}`
+                    ? resolveAssetUrl(selectedCase.profilePictureUrl)
                     : undefined
                 }
                 sx={{
@@ -616,10 +741,10 @@ export default function Student() {
               </Avatar>
               <Box>
                 <Typography variant="h4" fontWeight={700}>
-                  {selectedCase.caseTitle || selectedCase.name}
+                  {selectedPatientName}
                 </Typography>
                 <Typography variant="subtitle1" color="text.secondary">
-                  Patient: {selectedCase.name}
+                  {selectedChiefComplaint}
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
                   <Chip
@@ -630,12 +755,56 @@ export default function Student() {
                   {selectedCase.hasLabs && (
                     <Chip label="Labs" size="small" variant="outlined" color="info" />
                   )}
+                  {selectedCase.assignedByFaculty && (
+                    <Chip
+                      label={`Assigned by ${getDisplayName(selectedCase.assignedByFaculty)}`}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
                   {noteFields.isSubmitted && (
                     <Chip label="Submitted" size="small" color="success" />
                   )}
                 </Box>
               </Box>
             </Box>
+
+            {/* ── Patient Info Card ── */}
+            <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, bgcolor: "#f8fafc" }}>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
+                  <Avatar
+                    src={
+                      selectedCase.profilePictureUrl
+                        ? resolveAssetUrl(selectedCase.profilePictureUrl)
+                        : undefined
+                    }
+                    sx={{ width: 88, height: 88, fontSize: 30, bgcolor: "#1a3a5c", border: "2px solid #dbe4f0" }}
+                  >
+                    {!selectedCase.profilePictureUrl && getInitials(selectedCase)}
+                  </Avatar>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, flex: 1, minWidth: 280 }}>
+                    {[
+                      { label: "Patient Name", value: selectedPatientName },
+                      { label: "Chief Complaint", value: selectedCase.caseTitle || "—" },
+                      { label: "Date of Birth", value: selectedCase.dob ? new Date(selectedCase.dob).toLocaleDateString() : "—" },
+                      { label: "Gender", value: selectedCase.gender || "—" },
+                      { label: "Code Status", value: selectedCase.codeStatus || "—" },
+                      { label: "Location", value: selectedCase.location || "—" },
+                    ].map(({ label, value }) => (
+                      <Box key={label}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          {label}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {value}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
 
             {/* ── Tabs ── */}
             <Tabs
@@ -654,6 +823,122 @@ export default function Student() {
                   <Alert severity="info" sx={{ mb: 2 }}>
                     This assignment has been submitted. Your notes are now read-only.
                   </Alert>
+                )}
+
+                {noteFields.isSubmitted &&
+                  (noteFields.feedback ||
+                    (noteFields.grade !== null && noteFields.grade !== undefined)) && (
+                  <Card variant="outlined" sx={{ mb: 2, borderRadius: 2, bgcolor: "#f8fbff" }}>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight={700} gutterBottom>
+                        Faculty Review
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.5 }}>
+                        {noteFields.grade !== null && noteFields.grade !== undefined ? (
+                          <Chip label={`Grade: ${noteFields.grade} / 100`} color="success" />
+                        ) : (
+                          <Chip label="Pending grade" color="warning" />
+                        )}
+                        {noteFields.submittedAt && (
+                          <Chip
+                            label={`Submitted ${new Date(noteFields.submittedAt).toLocaleDateString()}`}
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                      {noteFields.feedback ? (
+                        <Typography sx={{ whiteSpace: "pre-wrap" }}>{noteFields.feedback}</Typography>
+                      ) : (
+                        <Typography color="text.secondary">
+                          Your instructor has not left written feedback yet.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {showLabSection && (
+                  <Card variant="outlined" sx={{ mb: 2, borderRadius: 2, bgcolor: "#fbfcff" }}>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight={700} gutterBottom>
+                        Released Labs
+                      </Typography>
+                      {labsError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                          {labsError}
+                        </Alert>
+                      )}
+
+                      {labsLoading ? (
+                        <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                          <CircularProgress size={24} />
+                        </Box>
+                      ) : caseLabs.length === 0 ? (
+                        <Alert severity="info">
+                          No labs have been released for this case yet.
+                        </Alert>
+                      ) : (
+                        <Box sx={{ display: "grid", gap: 2 }}>
+                          {caseLabs.map((lab) => (
+                            <Card key={lab.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                              <CardContent>
+                                <Typography variant="subtitle1" fontWeight={700}>
+                                  {lab.title}
+                                </Typography>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 1,
+                                    mt: 1,
+                                    mb: 1,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {lab.category && <Chip label={lab.category} size="small" />}
+                                  <Chip label={lab.originalFilename} size="small" variant="outlined" />
+                                  <Chip
+                                    label={new Date(lab.createdAt).toLocaleDateString()}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                </Box>
+                                {lab.description && (
+                                  <Typography sx={{ mb: 2, whiteSpace: "pre-wrap" }}>
+                                    {lab.description}
+                                  </Typography>
+                                )}
+                                {isImageLab(lab) && (
+                                  <Box
+                                    component="img"
+                                    src={resolveAssetUrl(lab.fileUrl)}
+                                    alt={lab.title}
+                                    sx={{
+                                      width: "100%",
+                                      maxHeight: 280,
+                                      objectFit: "contain",
+                                      borderRadius: 2,
+                                      border: "1px solid #dbe4f0",
+                                      bgcolor: "#f8fafc",
+                                      mb: 2,
+                                    }}
+                                  />
+                                )}
+                                <Button
+                                  variant="outlined"
+                                  component="a"
+                                  href={resolveAssetUrl(lab.fileUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Open Lab File
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
 
                 {SECTIONS.map(({ key, label, field }) => (

@@ -98,7 +98,7 @@ export default function SettingsPanel() {
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Change Password</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ mt: 0.5 }}>
+          <Stack spacing={2} sx={{ mt: 0.5 }} component="form" autoComplete="off">
             {error ? <Alert severity="error">{error}</Alert> : null}
 
             <TextField
@@ -108,7 +108,8 @@ export default function SettingsPanel() {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               size="small"
-              autoComplete="current-password"
+              autoComplete="off"
+              name="admin-current-password"
             />
             <TextField
               fullWidth
@@ -117,7 +118,8 @@ export default function SettingsPanel() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               size="small"
-              autoComplete="new-password"
+              autoComplete="off"
+              name="admin-new-password"
               helperText="Use at least 8 characters"
             />
             <TextField
@@ -127,7 +129,8 @@ export default function SettingsPanel() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               size="small"
-              autoComplete="new-password"
+              autoComplete="off"
+              name="admin-confirm-password"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   void handleSubmit();

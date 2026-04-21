@@ -4,10 +4,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import SystemLogsPage from "./pages/admin/SystemLogsPage";
-import FacultyCaseTemplatePage from "./components/faculty/CaseTemplatePage";
 import FacultyStudentCasePage from "./components/faculty/StudentCasePage";
 import FacultyStudentPage from "./components/faculty/StudentPage";
 import FacultyPage from "./pages/FacultyDashboard.tsx";
+import AccountSettingsPage from "./pages/AccountSettings";
 import LoginPage from "./pages/Login";
 import PortalPage from "./pages/Portal";
 import RegisterPage from "./pages/Register";
@@ -27,8 +27,9 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/faculty" element={<RequireRole allowed={["faculty", "admin"]}><FacultyPage /></RequireRole>} />
         <Route path="/student/:studentId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyStudentPage /></RequireRole>} />
         <Route path="/studentCase/:studentId/:caseId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyStudentCasePage /></RequireRole>} />
-        <Route path="/caseTemplate/:caseId" element={<RequireRole allowed={["faculty", "admin"]}><FacultyCaseTemplatePage /></RequireRole>} />
-        <Route path="/student" element={<RequireRole allowed={["student", "admin"]} allowGuestAccess><StudentPage /></RequireRole>} />
+        <Route path="/caseTemplate/:caseId" element={<Navigate to="/faculty" replace />} />
+        <Route path="/student" element={<RequireRole allowed={["student"]} allowGuestAccess><StudentPage /></RequireRole>} />
+        <Route path="/settings" element={<RequireRole allowed={["student", "faculty", "admin"]}><AccountSettingsPage /></RequireRole>} />
         <Route path="/admin/users" element={<RequireRole allowed={["admin"]}><AdminUsersPage /></RequireRole>} />
         <Route path="/admin/logs" element={<RequireRole allowed={["admin"]}><SystemLogsPage /></RequireRole>} />
         <Route path="/admin/settings" element={<RequireRole allowed={["admin"]}><SettingsPage /></RequireRole>} />
