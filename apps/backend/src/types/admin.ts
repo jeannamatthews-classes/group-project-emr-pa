@@ -27,6 +27,9 @@ export type AdminUpdateUserRoleResponse = {
 
 export type AuditEventType =
   | 'USER_REGISTERED'
+  | 'VERIFICATION_CODE_SENT'
+  | 'EMAIL_VERIFIED'
+  | 'EMAIL_VERIFICATION_FAILED'
   | 'USER_DELETED'
   | 'USER_ROLE_CHANGED'
   | 'USER_PASSWORD_RESET'

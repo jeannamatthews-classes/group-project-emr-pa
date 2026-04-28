@@ -3,6 +3,11 @@ import { prisma } from '../db';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 import { authMiddleware } from '../middleware/auth';
 import { createAuditLog } from '../services/auditLogService';
+import {
+  issueVerificationCode,
+  verifyEmailCode,
+  resendVerificationCode,
+} from '../services/emailVerificationService';
 
 //renamed branch
 const router = express.Router();
@@ -86,11 +91,16 @@ router.post('/register', async (req: Request, res: Response) => {
       targetUserId: user.id,
     });
 
-    // Generate token
-    const token = generateToken(user.id);
+    await issueVerificationCode({ userId: user.id, email: user.email });
+    await createAuditLog({
+      eventType: 'VERIFICATION_CODE_SENT',
+      message: `Verification code sent to ${user.email}`,
+      targetUserId: user.id,
+    });
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please verify your email before continuing.',
+      requiresEmailVerification: true,
       user: {
         id: user.id,
         username: user.username,
@@ -99,7 +109,6 @@ router.post('/register', async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
       },
-      token,
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -147,6 +156,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
+    if (!user.emailVerifiedAt) {
+      res.status(403).json({
+        error: 'Email not verified',
+        code: 'EMAIL_NOT_VERIFIED',
+        requiresEmailVerification: true,
+      });
+      return;
+    }
+
     // Generate token
     const token = generateToken(user.id);
 
@@ -172,6 +190,121 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/verify-email-code', async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { email, code } = body as { email?: string; code?: string };
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedCode = typeof code === 'string' ? code.trim() : '';
+
+    if (!normalizedEmail || !normalizedCode) {
+      res.status(400).json({ error: 'Email and code are required' });
+      return;
+    }
+
+    const result = await verifyEmailCode(normalizedEmail, normalizedCode);
+
+    if (result === 'invalid') {
+      await createAuditLog({
+        eventType: 'EMAIL_VERIFICATION_FAILED',
+        message: `Email verification failed for ${normalizedEmail}`,
+      });
+      res.status(400).json({ error: 'Invalid verification code' });
+      return;
+    }
+
+    if (result === 'expired') {
+      res.status(400).json({ error: 'Verification code has expired' });
+      return;
+    }
+
+    if (result === 'too_many_attempts') {
+      res.status(429).json({ error: 'Too many verification attempts. Please request a new code.' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    await createAuditLog({
+      eventType: 'EMAIL_VERIFIED',
+      message: `Email verified for ${user.email}`,
+      targetUserId: user.id,
+    });
+
+    const token = generateToken(user.id);
+    res.status(200).json({
+      message: 'Email verified successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Verify email code error:', error);
+    const details = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
+      error: 'Failed to verify email code',
+      ...(process.env.NODE_ENV !== 'production' ? { details } : {}),
+    });
+  }
+});
+
+router.post('/resend-email-code', async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { email } = body as { email?: string };
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (!normalizedEmail) {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    const result = await resendVerificationCode(normalizedEmail);
+
+    if (result === 'cooldown') {
+      res.status(429).json({ error: 'Please wait before requesting another verification code.' });
+      return;
+    }
+
+    if (result === 'sent') {
+      const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+
+      await createAuditLog({
+        eventType: 'VERIFICATION_CODE_SENT',
+        message: `Verification code resent to ${normalizedEmail}`,
+        targetUserId: user?.id,
+      });
+    }
+
+    res.status(200).json({
+      message: 'If an unverified account exists for this email, a new verification code has been sent.',
+    });
+  } catch (error) {
+    console.error('Resend email code error:', error);
+    const details = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({
+      error: 'Failed to resend verification code',
+      ...(process.env.NODE_ENV !== 'production' ? { details } : {}),
+    });
+  }
+});
+
 /**
  * Current user profile (protected route)
  */
@@ -186,6 +319,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
         lastName: true,
         email: true,
         role: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
     });
@@ -226,6 +360,7 @@ router.patch('/me', authMiddleware, async (req: Request, res: Response) => {
         lastName: true,
         email: true,
         role: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
     });
