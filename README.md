@@ -74,10 +74,18 @@ Default local values:
 PORT=5001
 CORS_ORIGIN=http://localhost:5173,http://localhost:5174
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/emrpa?schema=public"
+JWT_SECRET=replace_with_a_secure_secret
+
+DISABLE_EMAIL_VERIFICATION=false // change to true for testing purposes
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASS=your_smtp_password
+SMTP_FROM="no-reply@example.com"
 ```
 
 Notes:
-
 - Use `5001` for the backend unless you have a reason to change it.
 - Do not commit `.env` to Git.
 - If you change the frontend port, update `CORS_ORIGIN`.
