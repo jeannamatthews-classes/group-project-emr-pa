@@ -9,9 +9,12 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [code, setCode] = useState(searchParams.get("code") ?? "");
+  const fromLogin = searchParams.get("from") === "login";
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    fromLogin ? "Your account is waiting for email verification. Enter your code or request a new one." : null
+  );
   const [error, setError] = useState<string | null>(null);
 
   async function submitVerification(nextEmail = email, nextCode = code) {
@@ -86,7 +89,7 @@ export default function VerifyEmailPage() {
               <Box component="form" onSubmit={onSubmit} noValidate>
                 <Stack spacing={2}>
                   <TextField
-                    label="Clarkson Email"
+                    label="Email"
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}

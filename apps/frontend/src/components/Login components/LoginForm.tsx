@@ -33,6 +33,11 @@ export default function LoginForm() {
 
       navigate("/unassigned", { replace: true });
     },
+    onRequiresEmailVerification: (emailAddress) => {
+      navigate(`/verify-email?email=${encodeURIComponent(emailAddress)}&from=login`, {
+        replace: true,
+      });
+    },
   });
 
   const onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]> = async (event) => {

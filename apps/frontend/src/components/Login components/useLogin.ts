@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { disableGuestMode, loginUser } from "../../services/authApi";
+import { ApiError, disableGuestMode, loginUser } from "../../services/authApi";
 
 type LoginCredentials = {
   email: string;
@@ -13,6 +13,7 @@ type UseLoginOptions = {
   redirectTo?: string;
   onSuccess?: (result: LoginResult) => void;
   onError?: (message: string) => void;
+  onRequiresEmailVerification?: (email: string) => void;
 };
 
 type UseLoginReturn = {
@@ -28,6 +29,7 @@ export default function useLogin(options: UseLoginOptions = {}): UseLoginReturn 
     redirectTo,
     onSuccess,
     onError,
+    onRequiresEmailVerification,
   } = options;
 
   const [loading, setLoading] = useState(false);
@@ -38,7 +40,7 @@ export default function useLogin(options: UseLoginOptions = {}): UseLoginReturn 
   const handleLogin = async (
     credentials: LoginCredentials
   ): Promise<LoginResult | null> => {
-    const email = credentials.email.trim();
+    const email = credentials.email.trim().toLowerCase();
     const password = credentials.password;
 
     if (!email || !password) {
@@ -68,6 +70,15 @@ export default function useLogin(options: UseLoginOptions = {}): UseLoginReturn 
 
       return result;
     } catch (err: unknown) {
+      if (
+        err instanceof ApiError &&
+        err.requiresEmailVerification &&
+        err.code === "EMAIL_NOT_VERIFIED"
+      ) {
+        onRequiresEmailVerification?.(email);
+        return null;
+      }
+
       const message =
         err instanceof Error && err.message
           ? err.message

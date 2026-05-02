@@ -76,8 +76,27 @@ type UpdateProfileInput = {
 type ApiErrorResponse = {
     error?: string;
     details?: string;
+    code?: string;
+    requiresEmailVerification?: boolean;
 };
 
+class ApiError extends Error {
+    code?: string;
+    requiresEmailVerification?: boolean;
+
+    constructor(
+        message: string,
+        options: {
+            code?: string;
+            requiresEmailVerification?: boolean;
+        } = {}
+    ) {
+        super(message);
+        this.name = "ApiError";
+        this.code = options.code;
+        this.requiresEmailVerification = options.requiresEmailVerification;
+    }
+}
 
 async function parseResponse<T>(response: Response): Promise<T> {
     const data = (await response.json()) as T | ApiErrorResponse;
@@ -87,7 +106,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
         (data as ApiErrorResponse).error ||
         (data as ApiErrorResponse).details ||
         "Request failed";
-        throw new Error(errorMessage)
+        throw new ApiError(errorMessage, {
+            code: (data as ApiErrorResponse).code,
+            requiresEmailVerification: (data as ApiErrorResponse).requiresEmailVerification,
+        });
     }
     return data as T;
 }
@@ -209,6 +231,7 @@ export type {
 };
 
 export {
+  ApiError,
   parseResponse,
   normalizeApiError,
 };
