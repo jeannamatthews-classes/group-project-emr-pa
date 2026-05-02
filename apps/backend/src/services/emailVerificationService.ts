@@ -84,6 +84,7 @@ export async function verifyEmailCode(email: string, submittedCode: string): Pro
     where: { id: user.id },
     data: {
       emailVerifiedAt: new Date(),
+      emailVerificationBypassedAt: null,
       verificationCodeHash: null,
       verificationCodeExpiresAt: null,
       verificationAttempts: 0,

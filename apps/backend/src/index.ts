@@ -1,8 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import './config/env';
 import { prisma } from './db';
 import authRoutes from './routes/auth';
 import notesRoutes from './routes/notes';
@@ -13,8 +13,6 @@ import facultyRoutes from './routes/faculty';
 import filesRoutes from './routes/files';
 import studentRoutes from './routes/student';
 import { uploadsRoot } from './routes/uploads';
-
-dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

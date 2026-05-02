@@ -16,6 +16,7 @@ model User {
   password   String
   role       String   @default("unassigned")
   emailVerifiedAt             DateTime?
+  emailVerificationBypassedAt DateTime?
   verificationCodeHash        String?
   verificationCodeExpiresAt   DateTime?
   verificationAttempts        Int      @default(0)

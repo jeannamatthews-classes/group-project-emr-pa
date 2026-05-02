@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
 import { authMiddleware } from '../middleware/auth';
+import { isEmailVerificationDisabled } from '../config/env';
 import { createAuditLog } from '../services/auditLogService';
 import {
   issueVerificationCode,
@@ -11,10 +12,6 @@ import {
 
 //renamed branch
 const router = express.Router();
-
-function isEmailVerificationDisabled(): boolean {
-  return process.env.DISABLE_EMAIL_VERIFICATION === 'true';
-}
 
 function normalizeNamePart(value: string | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -27,6 +24,10 @@ function getUserDisplayName(user: {
 }): string {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   return fullName || user.username;
+}
+
+function isClarksonEmail(email: string): boolean {
+  return email.endsWith('@clarkson.edu');
 }
 
 /**
@@ -54,7 +55,9 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
-    if (!normalizedEmail.endsWith('@clarkson.edu')) {
+    const skipEmailVerification = isEmailVerificationDisabled();
+
+    if (!skipEmailVerification && !isClarksonEmail(normalizedEmail)) {
       res.status(400).json({ error: 'Email must end in @clarkson.edu' });
       return;
     }
@@ -83,7 +86,6 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Hash password and create user
     const hashedPassword = await hashPassword(password);
-    const skipEmailVerification = isEmailVerificationDisabled();
     const user = await prisma.user.create({
       data: {
         username: normalizedUsername,
@@ -92,7 +94,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: normalizedEmail,
         password: hashedPassword,
         role: 'unassigned',
-        ...(skipEmailVerification ? { emailVerifiedAt: new Date() } : {}),
+        ...(skipEmailVerification ? { emailVerificationBypassedAt: new Date() } : {}),
       },
     });
 
@@ -172,7 +174,18 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    if (!user.emailVerifiedAt && !isEmailVerificationDisabled()) {
+    const skipEmailVerification = isEmailVerificationDisabled();
+
+    if (!skipEmailVerification && user.emailVerificationBypassedAt) {
+      res.status(403).json({
+        error: 'Email not verified',
+        code: 'EMAIL_NOT_VERIFIED',
+        requiresEmailVerification: true,
+      });
+      return;
+    }
+
+    if (!skipEmailVerification && !user.emailVerifiedAt) {
       res.status(403).json({
         error: 'Email not verified',
         code: 'EMAIL_NOT_VERIFIED',
@@ -215,6 +228,11 @@ router.post('/verify-email-code', async (req: Request, res: Response) => {
 
     if (!normalizedEmail || !normalizedCode) {
       res.status(400).json({ error: 'Email and code are required' });
+      return;
+    }
+
+    if (!isEmailVerificationDisabled() && !isClarksonEmail(normalizedEmail)) {
+      res.status(400).json({ error: 'Email must end in @clarkson.edu' });
       return;
     }
 
@@ -285,6 +303,13 @@ router.post('/resend-email-code', async (req: Request, res: Response) => {
 
     if (!normalizedEmail) {
       res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    if (!isEmailVerificationDisabled() && !isClarksonEmail(normalizedEmail)) {
+      res.status(200).json({
+        message: 'If an unverified account exists for this email, a new verification code has been sent.',
+      });
       return;
     }
 
