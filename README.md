@@ -183,6 +183,6 @@ npx prisma generate
 npm run prisma:migrate
 cd ../..
 npm run dev:frontend
-open a new terminal
+"open a new terminal"
 npm run dev:backend
 ```
