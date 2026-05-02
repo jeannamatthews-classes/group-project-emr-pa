@@ -1,30 +1,23 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMe, getStoredToken, isGuestModeEnabled, logout } from "../services/authApi";
+import { getMe, getStoredToken, logout } from "../services/authApi";
 
 interface RequireRoleProps {
   allowed: string[];
   children: React.ReactNode;
-  allowGuestAccess?: boolean;
 }
 
 export default function RequireRole({
   allowed,
   children,
-  allowGuestAccess = false,
 }: RequireRoleProps) {
   const navigate = useNavigate();
   const [ok, setOk] = useState(false);
-  const canUseGuestRoute = allowGuestAccess && isGuestModeEnabled();
 
   useEffect(() => {
     const check = async () => {
       const token = getStoredToken();
       if (!token) {
-        if (canUseGuestRoute) {
-          setOk(true);
-          return;
-        }
         navigate("/login", { replace: true });
         return;
       }
@@ -38,15 +31,11 @@ export default function RequireRole({
         }
       } catch {
         logout();
-        if (canUseGuestRoute) {
-          setOk(true);
-          return;
-        }
         navigate("/login", { replace: true });
       }
     };
     void check();
-  }, [navigate, allowed, canUseGuestRoute]);
+  }, [navigate, allowed]);
 
   if (!ok) return null;
   return <>{children}</>;

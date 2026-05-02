@@ -1,11 +1,10 @@
 import { useState } from "react";
 import type { ComponentProps } from "react";
-import { Alert, Box, Button, Card, CardContent, Link, Stack, Typography } from "@mui/material";
+import { Alert, Box, Card, CardContent, Link, Stack, Typography } from "@mui/material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LoginInput from "./LoginInput";
 import Botton from "./botton";
 import useLogin from "./useLogin";
-import { enableGuestMode, logout } from "../../services/authApi";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -49,12 +48,6 @@ export default function LoginForm() {
     });
   };
 
-  const loginAsGuest = () => {
-    logout();
-    enableGuestMode("student");
-    navigate("/portal", { replace: true });
-  };
-
   return (
     <Card sx={{ width: "100%", maxWidth: 460, borderRadius: 3, mx: "auto" }}>
       <CardContent sx={{ p: 3 }}>
@@ -91,24 +84,10 @@ export default function LoginForm() {
 
               {error ? <Alert severity="error">{error}</Alert> : null}
 
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ flex: 1 }}>
-                  <Botton
-                    loading={loading}
-                    label={loading ? "Signing in..." : "Sign In"}
-                  />
-                </Box>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  size="small"
-                  disabled={loading}
-                  onClick={loginAsGuest}
-                  sx={{ mt: 1.5, textTransform: "none", whiteSpace: "nowrap" }}
-                >
-                  Login as Guest
-                </Button>
-              </Stack>
+              <Botton
+                loading={loading}
+                label={loading ? "Signing in..." : "Sign In"}
+              />
             </Stack>
           </Box>
 

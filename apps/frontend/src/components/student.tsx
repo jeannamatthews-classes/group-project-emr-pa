@@ -47,7 +47,6 @@ import type {
 import { touchCase, sortByLastInteracted } from "../services/caseStorage";
 import {
   getDisplayName,
-  isGuestModeEnabled,
   logout,
   getStoredToken,
   openAuthenticatedAsset,
@@ -308,7 +307,7 @@ function CaseGroup({
 
 export default function Student() {
   const navigate = useNavigate();
-  const isGuestUser = !getStoredToken();
+  const hasAuthToken = Boolean(getStoredToken());
   const appBarOffset = { xs: "56px", sm: "64px" };
 
   // ── cases & selection
@@ -548,7 +547,7 @@ export default function Student() {
   // ─── Logout ──────────────────────────────────────────────────────────────
   const handleLogout = () => {
     logout();
-    navigate(isGuestModeEnabled() ? "/portal" : "/login");
+    navigate("/login");
   };
 
   // ─── Derived sidebar groups ───────────────────────────────────────────────
@@ -588,25 +587,14 @@ export default function Student() {
           >
             EMR Student Dashboard
           </Typography>
-          {isGuestModeEnabled() && (
-            <Button
-              color="inherit"
-              onClick={() => navigate("/portal")}
-              sx={{ mr: 1, textTransform: "none", fontWeight: 600 }}
-            >
-              Back
-            </Button>
-          )}
-          {!isGuestModeEnabled() && (
-            <Button
-              color="inherit"
-              startIcon={<SettingsIcon />}
-              onClick={() => navigate("/settings")}
-              sx={{ textTransform: "none", fontWeight: 600, mr: 1 }}
-            >
-              Settings
-            </Button>
-          )}
+          <Button
+            color="inherit"
+            startIcon={<SettingsIcon />}
+            onClick={() => navigate("/settings")}
+            sx={{ textTransform: "none", fontWeight: 600, mr: 1 }}
+          >
+            Settings
+          </Button>
           <Button
             color="inherit"
             startIcon={<LogoutIcon />}
@@ -757,14 +745,14 @@ export default function Student() {
           <Box sx={{ textAlign: "center", mt: 8 }}>
             <Typography variant="h5" color="text.secondary" gutterBottom>
               {cases.length === 0
-                ? isGuestUser
+                ? !hasAuthToken
                   ? "Sign in to view your cases"
                   : "No assigned cases yet"
                 : "Welcome to the EMR Student Portal"}
             </Typography>
             <Typography variant="body1" color="text.secondary">
               {cases.length === 0
-                ? isGuestUser
+                ? !hasAuthToken
                   ? "This page now shows real faculty-assigned cases only."
                   : "Your assigned cases will appear here once faculty adds them."
                 : "Select a case from the sidebar to begin."}
@@ -1016,7 +1004,7 @@ export default function Student() {
                   <Button
                     variant="contained"
                     onClick={handleSave}
-                    disabled={isGuestUser || !!noteFields.isSubmitted}
+                    disabled={!hasAuthToken || !!noteFields.isSubmitted}
                     sx={{ bgcolor: "#1a3a5c", "&:hover": { bgcolor: "#14304d" } }}
                   >
                     Save Notes
@@ -1024,7 +1012,7 @@ export default function Student() {
                   <Button
                     variant="outlined"
                     onClick={handleSubmit}
-                    disabled={isGuestUser || !noteFields.id || !!noteFields.isSubmitted}
+                    disabled={!hasAuthToken || !noteFields.id || !!noteFields.isSubmitted}
                     color="success"
                   >
                     Submit Assignment

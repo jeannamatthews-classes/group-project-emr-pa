@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiError, disableGuestMode, loginUser } from "../../services/authApi";
+import { ApiError, loginUser } from "../../services/authApi";
 
 type LoginCredentials = {
   email: string;
@@ -58,7 +58,6 @@ export default function useLogin(options: UseLoginOptions = {}): UseLoginReturn 
 
       if (result.token) {
         localStorage.setItem(storageKey, result.token);
-        disableGuestMode();
         sessionStorage.setItem('emr_login_success', 'true');
       }
 
