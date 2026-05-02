@@ -70,6 +70,35 @@ export type FacultyCaseAssignment = {
   createdAt: string;
 };
 
+export type FacultyUser = {
+  id: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  role: string;
+};
+
+export type FacultyCourseMember = {
+  id: string;
+  userId: string;
+  role: "student" | "faculty";
+  user: FacultyUser;
+  createdAt: string;
+};
+
+export type FacultyCourse = {
+  id: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  createdByFacultyId: string | null;
+  caseCount: number;
+  members: FacultyCourseMember[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type FacultyCase = {
   id: number;
   name: string;
@@ -84,6 +113,8 @@ export type FacultyCase = {
   caseType: string;
   hasLabs: boolean;
   profilePictureUrl: string | null;
+  facultyCreatorId?: string | null;
+  courseId?: string | null;
   assignments: FacultyCaseAssignment[];
   totalNoteCount: number;
   submittedNoteCount: number;
@@ -199,16 +230,92 @@ export type FacultyCaseLab = {
   } | null;
 };
 
-export async function facultyListStudents(token: string): Promise<{ students: FacultyStudent[] }> {
-  const response = await fetch(`${FACULTY_BASE_URL}/students`, {
+function appendCourseId(url: string, courseId?: string | null): string {
+  if (!courseId) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}courseId=${encodeURIComponent(courseId)}`;
+}
+
+export async function facultyListCourses(token: string): Promise<{ courses: FacultyCourse[] }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/courses`, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+  return parseResponse<{ courses: FacultyCourse[] }>(response);
+}
+
+export async function facultyListFacultyUsers(token: string): Promise<{ faculty: FacultyUser[] }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/faculty-users`, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+  return parseResponse<{ faculty: FacultyUser[] }>(response);
+}
+
+export async function facultyCreateCourse(
+  token: string,
+  payload: {
+    name: string;
+    code?: string;
+    description?: string;
+    studentIds?: string[];
+    facultyIds?: string[];
+  }
+): Promise<{ course: FacultyCourse }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/courses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<{ course: FacultyCourse }>(response);
+}
+
+export async function facultyUpdateCourseMembers(
+  token: string,
+  courseId: string,
+  payload: { studentIds: string[]; facultyIds: string[] }
+): Promise<{ course: FacultyCourse }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/courses/${encodeURIComponent(courseId)}/members`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<{ course: FacultyCourse }>(response);
+}
+
+export async function facultyDeleteCourse(
+  token: string,
+  courseId: string
+): Promise<{ deletedCourse: { id: string; name: string; deletedCaseCount: number } }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/courses/${encodeURIComponent(courseId)}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  return parseResponse<{ deletedCourse: { id: string; name: string; deletedCaseCount: number } }>(response);
+}
+
+export async function facultyListStudents(
+  token: string,
+  courseId?: string | null
+): Promise<{ students: FacultyStudent[] }> {
+  const response = await fetch(appendCourseId(`${FACULTY_BASE_URL}/students`, courseId), {
     method: "GET",
     headers: authHeaders(token),
   });
   return parseResponse<{ students: FacultyStudent[] }>(response);
 }
 
-export async function facultyListCases(token: string): Promise<{ cases: FacultyCase[] }> {
-  const response = await fetch(`${FACULTY_BASE_URL}/cases`, {
+export async function facultyListCases(
+  token: string,
+  courseId?: string | null
+): Promise<{ cases: FacultyCase[] }> {
+  const response = await fetch(appendCourseId(`${FACULTY_BASE_URL}/cases`, courseId), {
     method: "GET",
     headers: authHeaders(token),
   });
@@ -225,13 +332,14 @@ export async function facultyGetCase(token: string, caseId: number): Promise<{ c
 
 export async function facultyListStudentCases(
   token: string,
-  studentId: string
+  studentId: string,
+  courseId?: string | null
 ): Promise<{
   student: { id: string; username: string; firstName: string | null; lastName: string | null; email: string };
   cases: FacultyStudentCase[];
 }> {
   const response = await fetch(
-    `${FACULTY_BASE_URL}/students/${encodeURIComponent(studentId)}/cases`,
+    appendCourseId(`${FACULTY_BASE_URL}/students/${encodeURIComponent(studentId)}/cases`, courseId),
     {
       method: "GET",
       headers: authHeaders(token),
@@ -270,6 +378,7 @@ export async function facultyCreateCase(
     codeStatus?: string;
     caseType?: string;
     hasLabs?: boolean;
+    courseId: string;
   }
 ): Promise<{ case: { id: number } }> {
   const response = await fetch(`${API_ROOT}/cases`, {

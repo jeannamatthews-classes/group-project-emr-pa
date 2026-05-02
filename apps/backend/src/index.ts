@@ -14,7 +14,7 @@ import filesRoutes from './routes/files';
 import studentRoutes from './routes/student';
 import { uploadsRoot } from './routes/uploads';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

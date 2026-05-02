@@ -29,7 +29,9 @@ function resolveApiRoot(authBaseUrl: string): string {
 const AUTH_ENDPOINTS = {
     login: "/login",
     register: "/register",
-    me: "/me"
+    me: "/me",
+    verifyEmailCode: "/verify-email-code",
+    resendEmailCode: "/resend-email-code",
 } as const;
 
 
@@ -113,6 +115,31 @@ export async function registerUser(payload: RegisterInput): Promise<AuthSuccessR
         body: JSON.stringify(payload),
     });
     return parseResponse<AuthSuccessResponse>(response);
+}
+
+export async function verifyEmailCode(payload: {
+    email: string;
+    code: string;
+}): Promise<AuthSuccessResponse> {
+    const response = await fetch(AUTH_BASE_URL+AUTH_ENDPOINTS.verifyEmailCode, {
+        method: "POST",
+        headers:{
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse<AuthSuccessResponse>(response);
+}
+
+export async function resendEmailCode(payload: { email: string }): Promise<{ message: string }> {
+    const response = await fetch(AUTH_BASE_URL+AUTH_ENDPOINTS.resendEmailCode, {
+        method: "POST",
+        headers:{
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    });
+    return parseResponse<{ message: string }>(response);
 }
 
 

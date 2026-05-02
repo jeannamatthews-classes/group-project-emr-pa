@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
+import { isStudentInCourse } from '../utils/courseAccess';
 
 const router = express.Router();
 
@@ -56,8 +57,16 @@ router.get('/cases', async (req: Request, res: Response) => {
       where: {
         studentId,
         patient: {
-          facultyCreatorId: {
+          courseId: {
             not: null,
+          },
+          course: {
+            members: {
+              some: {
+                userId: studentId,
+                role: 'student',
+              },
+            },
           },
         },
       },
@@ -74,6 +83,7 @@ router.get('/cases', async (req: Request, res: Response) => {
             caseType: true,
             hasLabs: true,
             profilePictureUrl: true,
+            courseId: true,
           },
         },
         assignedByFaculty: {
@@ -133,13 +143,18 @@ router.get('/cases/:id/labs', async (req: Request, res: Response) => {
         patient: {
           select: {
             facultyCreatorId: true,
+            courseId: true,
             hasLabs: true,
           },
         },
       },
     });
 
-    if (!assignment || !assignment.patient.facultyCreatorId) {
+    if (
+      !assignment ||
+      !assignment.patient.courseId ||
+      !(await isStudentInCourse(assignment.patient.courseId, studentId))
+    ) {
       res.status(403).json({ error: 'You are not assigned to this case.' });
       return;
     }
@@ -178,8 +193,16 @@ router.get('/grades', async (req: Request, res: Response) => {
         studentId,
         isSubmitted: true,
         patient: {
-          facultyCreatorId: {
+          courseId: {
             not: null,
+          },
+          course: {
+            members: {
+              some: {
+                userId: studentId,
+                role: 'student',
+              },
+            },
           },
         },
       },

@@ -12,6 +12,10 @@ import {
 //renamed branch
 const router = express.Router();
 
+function isEmailVerificationDisabled(): boolean {
+  return process.env.DISABLE_EMAIL_VERIFICATION === 'true';
+}
+
 function normalizeNamePart(value: string | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -50,6 +54,11 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
+    if (!normalizedEmail.endsWith('@clarkson.edu')) {
+      res.status(400).json({ error: 'Email must end in @clarkson.edu' });
+      return;
+    }
+
     if (password !== confirmPassword) {
       res.status(400).json({ error: 'Passwords do not match' });
       return;
@@ -74,6 +83,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Hash password and create user
     const hashedPassword = await hashPassword(password);
+    const skipEmailVerification = isEmailVerificationDisabled();
     const user = await prisma.user.create({
       data: {
         username: normalizedUsername,
@@ -82,6 +92,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: normalizedEmail,
         password: hashedPassword,
         role: 'unassigned',
+        ...(skipEmailVerification ? { emailVerifiedAt: new Date() } : {}),
       },
     });
 
@@ -91,16 +102,20 @@ router.post('/register', async (req: Request, res: Response) => {
       targetUserId: user.id,
     });
 
-    await issueVerificationCode({ userId: user.id, email: user.email });
-    await createAuditLog({
-      eventType: 'VERIFICATION_CODE_SENT',
-      message: `Verification code sent to ${user.email}`,
-      targetUserId: user.id,
-    });
+    if (!skipEmailVerification) {
+      await issueVerificationCode({ userId: user.id, email: user.email });
+      await createAuditLog({
+        eventType: 'VERIFICATION_CODE_SENT',
+        message: `Verification code sent to ${user.email}`,
+        targetUserId: user.id,
+      });
+    }
 
     res.status(201).json({
-      message: 'User registered successfully. Please verify your email before continuing.',
-      requiresEmailVerification: true,
+      message: skipEmailVerification
+        ? 'User registered successfully.'
+        : 'User registered successfully. Please verify your email before continuing.',
+      requiresEmailVerification: !skipEmailVerification,
       user: {
         id: user.id,
         username: user.username,
@@ -109,6 +124,7 @@ router.post('/register', async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
       },
+      ...(skipEmailVerification ? { token: generateToken(user.id) } : {}),
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -156,7 +172,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    if (!user.emailVerifiedAt) {
+    if (!user.emailVerifiedAt && !isEmailVerificationDisabled()) {
       res.status(403).json({
         error: 'Email not verified',
         code: 'EMAIL_NOT_VERIFIED',

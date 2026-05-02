@@ -3,6 +3,7 @@ import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
 import { buildUploadUrl, upload, type UploadedFileLike } from './uploads';
+import { canManageCourse, getManageableCourseIds, isAdminRole } from '../utils/courseAccess';
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ function patientToCase(p: {
 	hasLabs?: boolean;
 	profilePictureUrl?: string | null;
 	facultyCreatorId?: string | null;
+	courseId?: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }) {
@@ -47,6 +49,7 @@ function patientToCase(p: {
 		hasLabs: p.hasLabs ?? false,
 		profilePictureUrl: p.profilePictureUrl ?? null,
 		facultyCreatorId: p.facultyCreatorId ?? null,
+		courseId: p.courseId ?? null,
 		createdAt: p.createdAt,
 		updatedAt: p.updatedAt,
 	};
@@ -55,9 +58,23 @@ function patientToCase(p: {
 router.use(authMiddleware);
 router.use(facultyOrAdminMiddleware);
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
 	try {
-		const patients = await prisma.patient.findMany({ orderBy: { id: 'asc' } });
+		const courseIdParam = typeof req.query.courseId === 'string' ? req.query.courseId.trim() : '';
+		if (courseIdParam && !(await canManageCourse(courseIdParam, req.userId!, req.userRole))) {
+			res.status(403).json({ error: 'You do not have access to this course' });
+			return;
+		}
+
+		const manageableCourseIds = await getManageableCourseIds(req.userId!, req.userRole);
+		const patients = await prisma.patient.findMany({
+			where: courseIdParam
+				? { courseId: courseIdParam }
+				: isAdminRole(req.userRole)
+					? { courseId: { not: null } }
+					: { courseId: { in: manageableCourseIds ?? [] } },
+			orderBy: { id: 'asc' },
+		});
 		res.json({ cases: patients.map(patientToCase) });
 	} catch (error) {
 		console.error('GET /api/cases error:', error);
@@ -78,6 +95,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 			res.status(404).json({ error: 'Case not found' });
 			return;
 		}
+		if (!p.courseId || !(await canManageCourse(p.courseId, req.userId!, req.userRole))) {
+			res.status(403).json({ error: 'You do not have access to this case' });
+			return;
+		}
 
 		res.json({ case: patientToCase(p) });
 	} catch (error) {
@@ -96,11 +117,15 @@ router.get('/:id/notes', async (req: Request, res: Response) => {
 
 		const exists = await prisma.patient.findUnique({
 			where: { id: caseId },
-			select: { id: true },
+			select: { id: true, courseId: true },
 		});
 
 		if (!exists) {
 			res.status(404).json({ error: 'Case not found' });
+			return;
+		}
+		if (!exists.courseId || !(await canManageCourse(exists.courseId, req.userId!, req.userRole))) {
+			res.status(403).json({ error: 'You do not have access to this case' });
 			return;
 		}
 
@@ -128,6 +153,7 @@ router.post('/', async (req: Request, res: Response) => {
 			codeStatus?: unknown;
 			caseType?: unknown;
 			hasLabs?: unknown;
+			courseId?: unknown;
 		};
 
 		const rawName = typeof body.name === 'string' ? body.name.trim() : '';
@@ -152,6 +178,15 @@ router.post('/', async (req: Request, res: Response) => {
 		const caseTitle = typeof body.caseTitle === 'string' ? body.caseTitle.trim() : rawName;
 		const caseType = body.caseType === 'sim' ? 'sim' : 'pbl';
 		const hasLabs = body.hasLabs === true || body.hasLabs === 'true';
+		const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
+		if (!courseId) {
+			res.status(400).json({ error: 'courseId is required' });
+			return;
+		}
+		if (!(await canManageCourse(courseId, req.userId!, req.userRole))) {
+			res.status(403).json({ error: 'You do not have access to this course' });
+			return;
+		}
 
 		const patient = await prisma.patient.create({
 			data: {
@@ -164,6 +199,7 @@ router.post('/', async (req: Request, res: Response) => {
 				caseType,
 				hasLabs,
 				facultyCreatorId: req.userId ?? null,
+				courseId,
 			},
 		});
 
@@ -192,6 +228,15 @@ router.post(
 			}
 
 			const profilePictureUrl = buildUploadUrl(uploadedFile);
+
+			const patient = await prisma.patient.findUnique({
+				where: { id: caseId },
+				select: { courseId: true },
+			});
+			if (!patient?.courseId || !(await canManageCourse(patient.courseId, req.userId!, req.userRole))) {
+				res.status(403).json({ error: 'You do not have access to this case' });
+				return;
+			}
 
 			await prisma.patient.update({
 				where: { id: caseId },

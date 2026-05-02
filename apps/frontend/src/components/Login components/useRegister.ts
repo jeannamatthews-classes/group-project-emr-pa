@@ -60,6 +60,13 @@ export default function useRegister(
       return null;
     }
 
+    if (!email.endsWith("@clarkson.edu")) {
+      const message = "Email must end in @clarkson.edu.";
+      setError(message);
+      onError?.(message);
+      return null;
+    }
+
     if (password !== confirmPassword) {
       const message = "Passwords do not match.";
       setError(message);
