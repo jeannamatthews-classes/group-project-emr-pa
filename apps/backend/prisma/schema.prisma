@@ -31,6 +31,42 @@ model User {
   caseAssignmentsAsStudent CaseAssignment[] @relation("CaseAssignmentStudent")
   caseAssignmentsAsFaculty CaseAssignment[] @relation("CaseAssignmentFaculty")
   caseLabsUploaded         CaseLab[]        @relation("CaseLabsUploadedByFaculty")
+  courseMemberships        CourseMember[]
+  coursesCreated           Course[]         @relation("CoursesCreatedByFaculty")
+}
+
+/// Faculty-created course cohort. Cases, enrolled students, and faculty reviewers are scoped here.
+model Course {
+  id                 String   @id @default(cuid())
+  name               String
+  code               String?
+  description        String?
+  createdByFacultyId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdByFaculty User?          @relation("CoursesCreatedByFaculty", fields: [createdByFacultyId], references: [id], onDelete: SetNull)
+  members          CourseMember[]
+  patients         Patient[]
+
+  @@index([createdByFacultyId])
+  @@index([name])
+}
+
+/// Course roster. Only student members see assigned cases in the course, and only faculty members review them.
+model CourseMember {
+  id        String   @id @default(cuid())
+  courseId  String
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([courseId, role])
+  @@index([userId, role])
 }
 
 /// Patient / chart header (demographics + status).
@@ -52,16 +88,20 @@ model Patient {
   profilePictureUrl String?
   /// Faculty user who created this case.
   facultyCreatorId  String?
+  /// Course that owns this case.
+  courseId          String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   facultyCreator  User?            @relation("PatientsCreatedByFaculty", fields: [facultyCreatorId], references: [id], onDelete: SetNull)
+  course          Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
   chiefComplaints ChiefComplaint[]
   notes           Note[]
   assignments     CaseAssignment[]
   caseLabs        CaseLab[]
 
   @@index([facultyCreatorId])
+  @@index([courseId])
 }
 
 /// Faculty-uploaded lab or diagnostic asset for a case.

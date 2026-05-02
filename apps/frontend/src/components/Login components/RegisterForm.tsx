@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { ComponentProps } from "react";
 import { Alert, Box, Card, CardContent, Link, Stack, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import LoginInput from "./LoginInput";
 import Botton from "./botton";
 import useRegister from "./useRegister";
 
 export default function RegisterForm() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -15,7 +16,13 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const { loading, error, handleRegister, clearError } = useRegister({
-    redirectTo: "/portal",
+    onSuccess: (result) => {
+      if (result.token) {
+        navigate("/portal", { replace: true });
+        return;
+      }
+      navigate(`/verify-email?email=${encodeURIComponent(result.user.email)}`, { replace: true });
+    },
   });
 
   const onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]> = async (event) => {

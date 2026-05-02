@@ -9,6 +9,7 @@ import {
   labUpload,
   type UploadedFileLike,
 } from './uploads';
+import { canManageCourse, getManageableCourseIds, isAdminRole } from '../utils/courseAccess';
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ function patientToCase(p: {
   hasLabs: boolean;
   profilePictureUrl: string | null;
   facultyCreatorId: string | null;
+  courseId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -53,23 +55,29 @@ function patientToCase(p: {
     hasLabs: p.hasLabs,
     profilePictureUrl: p.profilePictureUrl,
     facultyCreatorId: p.facultyCreatorId,
+    courseId: p.courseId ?? null,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
 }
 
-function isFacultyWorkflowRole(role: string | undefined): boolean {
-  return role === 'faculty' || role === 'admin';
-}
+async function getFacultyPatientWhere(
+  userId: string,
+  role: string | undefined,
+  courseId?: string
+) {
+  if (courseId) {
+    const canManage = await canManageCourse(courseId, userId, role);
+    if (!canManage) return null;
+    return { courseId };
+  }
 
-function getFacultyPatientWhere(userId: string, role: string | undefined) {
-  return isFacultyWorkflowRole(role)
-    ? {
-        facultyCreatorId: {
-          not: null,
-        },
-      }
-    : { facultyCreatorId: userId };
+  if (isAdminRole(role)) {
+    return { courseId: { not: null } };
+  }
+
+  const courseIds = await getManageableCourseIds(userId, role);
+  return { courseId: { in: courseIds ?? [] } };
 }
 
 function getNoteStatus(note: { isSubmitted: boolean; feedback: string | null; grade: number | null }): string {
@@ -137,13 +145,12 @@ async function assertFacultyCaseAccess(
 ) {
   const patient = await prisma.patient.findUnique({
     where: { id: patientId },
-    select: { id: true, facultyCreatorId: true, hasLabs: true },
+    select: { id: true, facultyCreatorId: true, hasLabs: true, courseId: true },
   });
 
   if (!patient) return { error: 'not_found' as const };
-  if (!patient.facultyCreatorId) return { error: 'not_found' as const };
-  if (isFacultyWorkflowRole(role)) return { patient };
-  if (patient.facultyCreatorId === userId) return { patient };
+  if (!patient.courseId) return { error: 'not_found' as const };
+  if (await canManageCourse(patient.courseId, userId, role)) return { patient };
   return { error: 'forbidden' as const };
 }
 
@@ -175,25 +182,301 @@ async function loadPatientForFaculty(
   });
 
   if (!patient) return { error: 'not_found' as const };
-  if (!patient.facultyCreatorId) return { error: 'not_found' as const };
-  if (isFacultyWorkflowRole(role)) return { patient };
-  if (patient.facultyCreatorId === userId) return { patient };
+  if (!patient.courseId) return { error: 'not_found' as const };
+  if (await canManageCourse(patient.courseId, userId, role)) return { patient };
   return { error: 'forbidden' as const };
 }
 
 router.use(authMiddleware);
 router.use(facultyOrAdminMiddleware);
 
-/** List student accounts (for assignment pickers). */
-router.get('/students', async (req: Request, res: Response) => {
+router.get('/faculty-users', async (_req: Request, res: Response) => {
   try {
-    const students = await prisma.user.findMany({
-      where: { role: 'student' },
-      select: { id: true, username: true, firstName: true, lastName: true, email: true, createdAt: true },
+    const faculty = await prisma.user.findMany({
+      where: { role: { in: ['faculty', 'admin'] } },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { username: 'asc' }],
     });
 
-    const patientWhere = getFacultyPatientWhere(req.userId as string, req.userRole);
+    res.json({ faculty });
+  } catch (error) {
+    console.error('GET /api/faculty/faculty-users error:', error);
+    res.status(500).json({ error: 'Failed to list faculty users' });
+  }
+});
+
+router.get('/courses', async (req: Request, res: Response) => {
+  try {
+    const manageableCourseIds = await getManageableCourseIds(req.userId as string, req.userRole);
+    const courses = await prisma.course.findMany({
+      where: manageableCourseIds === null ? {} : { id: { in: manageableCourseIds } },
+      orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: { select: { patients: true } },
+      },
+    });
+
+    res.json({
+      courses: courses.map((course) => ({
+        id: course.id,
+        name: course.name,
+        code: course.code,
+        description: course.description,
+        createdByFacultyId: course.createdByFacultyId,
+        createdAt: course.createdAt,
+        updatedAt: course.updatedAt,
+        caseCount: course._count.patients,
+        members: course.members.map((member) => ({
+          id: member.id,
+          userId: member.userId,
+          role: member.role,
+          user: member.user,
+          createdAt: member.createdAt,
+        })),
+      })),
+    });
+  } catch (error) {
+    console.error('GET /api/faculty/courses error:', error);
+    res.status(500).json({ error: 'Failed to list courses' });
+  }
+});
+
+router.post('/courses', async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as {
+      name?: unknown;
+      code?: unknown;
+      description?: unknown;
+      studentIds?: unknown;
+      facultyIds?: unknown;
+    };
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name) {
+      res.status(400).json({ error: 'Course name is required' });
+      return;
+    }
+
+    const studentIds = Array.isArray(body.studentIds)
+      ? body.studentIds.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+      : [];
+    const facultyIds = Array.isArray(body.facultyIds)
+      ? body.facultyIds.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+      : [];
+    const facultySet = new Set([...facultyIds, req.userId as string]);
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: [...studentIds, ...facultySet] } },
+      select: { id: true, role: true },
+    });
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    const members = [
+      ...studentIds
+        .filter((id) => userById.get(id)?.role === 'student')
+        .map((userId) => ({ userId, role: 'student' })),
+      ...[...facultySet]
+        .filter((id) => ['faculty', 'admin'].includes(userById.get(id)?.role ?? ''))
+        .map((userId) => ({ userId, role: 'faculty' })),
+    ];
+
+    const course = await prisma.course.create({
+      data: {
+        name,
+        code: typeof body.code === 'string' && body.code.trim() ? body.code.trim() : null,
+        description:
+          typeof body.description === 'string' && body.description.trim()
+            ? body.description.trim()
+            : null,
+        createdByFacultyId: req.userId,
+        members: {
+          create: members,
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
+          },
+        },
+        _count: { select: { patients: true } },
+      },
+    });
+
+    res.status(201).json({ course });
+  } catch (error) {
+    console.error('POST /api/faculty/courses error:', error);
+    res.status(500).json({ error: 'Failed to create course' });
+  }
+});
+
+router.patch('/courses/:courseId/members', async (req: Request, res: Response) => {
+  try {
+    const courseId = paramString(req.params.courseId).trim();
+    if (!courseId) {
+      res.status(400).json({ error: 'Invalid course id' });
+      return;
+    }
+
+    if (!(await canManageCourse(courseId, req.userId as string, req.userRole))) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as { studentIds?: unknown; facultyIds?: unknown };
+    const studentIds = Array.isArray(body.studentIds)
+      ? body.studentIds.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+      : [];
+    const facultyIds = Array.isArray(body.facultyIds)
+      ? body.facultyIds.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))
+      : [];
+    const facultySet = new Set([...facultyIds, req.userId as string]);
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: [...studentIds, ...facultySet] } },
+      select: { id: true, role: true },
+    });
+    const userById = new Map(users.map((user) => [user.id, user]));
+    const nextMembers = [
+      ...studentIds
+        .filter((id) => userById.get(id)?.role === 'student')
+        .map((userId) => ({ courseId, userId, role: 'student' })),
+      ...[...facultySet]
+        .filter((id) => ['faculty', 'admin'].includes(userById.get(id)?.role ?? ''))
+        .map((userId) => ({ courseId, userId, role: 'faculty' })),
+    ];
+
+    await prisma.$transaction([
+      prisma.courseMember.deleteMany({ where: { courseId } }),
+      prisma.courseMember.createMany({ data: nextMembers, skipDuplicates: true }),
+    ]);
+
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        members: {
+          include: {
+            user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
+          },
+        },
+        _count: { select: { patients: true } },
+      },
+    });
+
+    res.json({ course });
+  } catch (error) {
+    console.error('PATCH /api/faculty/courses/:courseId/members error:', error);
+    res.status(500).json({ error: 'Failed to update course members' });
+  }
+});
+
+router.delete('/courses/:courseId', async (req: Request, res: Response) => {
+  try {
+    const courseId = paramString(req.params.courseId).trim();
+    if (!courseId) {
+      res.status(400).json({ error: 'Invalid course id' });
+      return;
+    }
+
+    if (!(await canManageCourse(courseId, req.userId as string, req.userRole))) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
+
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: {
+        id: true,
+        name: true,
+        patients: {
+          select: {
+            id: true,
+            profilePictureUrl: true,
+            caseLabs: {
+              select: {
+                fileUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!course) {
+      res.status(404).json({ error: 'Course not found' });
+      return;
+    }
+
+    const patientIds = course.patients.map((patient) => patient.id);
+
+    await prisma.$transaction([
+      prisma.patient.deleteMany({
+        where: { id: { in: patientIds } },
+      }),
+      prisma.course.delete({
+        where: { id: courseId },
+      }),
+    ]);
+
+    for (const patient of course.patients) {
+      if (patient.profilePictureUrl) {
+        deleteUploadFileIfExists(patient.profilePictureUrl);
+      }
+
+      for (const lab of patient.caseLabs) {
+        deleteUploadFileIfExists(lab.fileUrl);
+      }
+    }
+
+    res.json({
+      deletedCourse: {
+        id: course.id,
+        name: course.name,
+        deletedCaseCount: patientIds.length,
+      },
+    });
+  } catch (error) {
+    console.error('DELETE /api/faculty/courses/:courseId error:', error);
+    res.status(500).json({ error: 'Failed to delete course' });
+  }
+});
+
+/** List student accounts (for assignment pickers). */
+router.get('/students', async (req: Request, res: Response) => {
+  try {
+    const courseIdParam = typeof req.query.courseId === 'string' ? req.query.courseId.trim() : '';
+    const patientWhere = await getFacultyPatientWhere(
+      req.userId as string,
+      req.userRole,
+      courseIdParam || undefined
+    );
+    if (!patientWhere) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
+
+    const students = await prisma.user.findMany({
+      where: {
+        role: 'student',
+        ...(courseIdParam
+          ? {
+              courseMemberships: {
+                some: {
+                  courseId: courseIdParam,
+                  role: 'student',
+                },
+              },
+            }
+          : {}),
+      },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, createdAt: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { username: 'asc' }],
+    });
 
     const assignments = await prisma.caseAssignment.findMany({
       where: {
@@ -262,10 +545,21 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
       return;
     }
 
+    const courseIdParam = typeof req.query.courseId === 'string' ? req.query.courseId.trim() : '';
+    const patientWhere = await getFacultyPatientWhere(
+      req.userId as string,
+      req.userRole,
+      courseIdParam || undefined
+    );
+    if (!patientWhere) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
+
     const assignments = await prisma.caseAssignment.findMany({
       where: {
         studentId,
-        patient: getFacultyPatientWhere(req.userId as string, req.userRole),
+        patient: patientWhere,
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -339,7 +633,16 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
 /** Cases visible in the collaborative faculty workflow. */
 router.get('/cases', async (req: Request, res: Response) => {
   try {
-    const where = getFacultyPatientWhere(req.userId as string, req.userRole);
+    const courseIdParam = typeof req.query.courseId === 'string' ? req.query.courseId.trim() : '';
+    const where = await getFacultyPatientWhere(
+      req.userId as string,
+      req.userRole,
+      courseIdParam || undefined
+    );
+    if (!where) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
 
     const patients = await prisma.patient.findMany({
       where,

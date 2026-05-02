@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@mui/material";
 
 import { getDisplayName, getMe, getStoredToken, logout } from "../../services/authApi";
@@ -30,6 +30,8 @@ import type { CaseActionDialogState } from "./facultyStudentPageTypes";
 
 export default function StudentPage() {
   const { studentId } = useParams<{ studentId: string }>();
+  const [searchParams] = useSearchParams();
+  const courseId = searchParams.get("courseId");
   const navigate = useNavigate();
 
   const [students, setStudents] = useState<FacultyStudent[]>([]);
@@ -68,8 +70,8 @@ export default function StudentPage() {
 
       try {
         const [{ students: nextStudents }, { cases: nextCases }, me] = await Promise.all([
-          facultyListStudents(token),
-          facultyListCases(token),
+          facultyListStudents(token, courseId),
+          facultyListCases(token, courseId),
           getMe(token),
         ]);
 
@@ -92,7 +94,7 @@ export default function StudentPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [courseId]);
 
   useEffect(() => {
     let active = true;
@@ -116,7 +118,7 @@ export default function StudentPage() {
 
       setStudentCasesLoading(true);
       try {
-        const { cases: nextCases } = await facultyListStudentCases(token, studentId);
+        const { cases: nextCases } = await facultyListStudentCases(token, studentId, courseId);
         if (!active) return;
         setStudentCases(nextCases);
         setActionError(null);
@@ -135,7 +137,7 @@ export default function StudentPage() {
     return () => {
       active = false;
     };
-  }, [studentId]);
+  }, [studentId, courseId]);
 
   useEffect(() => {
     setActionMessage(null);
@@ -187,9 +189,9 @@ export default function StudentPage() {
 
     const [{ students: nextStudents }, { cases: nextFacultyCases }, { cases: nextStudentCases }] =
       await Promise.all([
-        facultyListStudents(token),
-        facultyListCases(token),
-        facultyListStudentCases(token, studentId),
+        facultyListStudents(token, courseId),
+        facultyListCases(token, courseId),
+        facultyListStudentCases(token, studentId, courseId),
       ]);
 
     setStudents(nextStudents);
@@ -257,6 +259,7 @@ export default function StudentPage() {
         location: newCaseForm.location.trim() || undefined,
         caseType: newCaseForm.caseType,
         hasLabs: newCaseForm.hasLabs,
+        courseId: courseId ?? "",
       });
 
       if (pictureFile) {
@@ -341,7 +344,7 @@ export default function StudentPage() {
         studentCasesLoading={studentCasesLoading}
         onStudentSearchChange={setStudentSearch}
         onAssignedCaseSearchChange={setAssignedCaseSearch}
-        onStudentSelect={(nextStudentId) => navigate(`/student/${nextStudentId}`)}
+        onStudentSelect={(nextStudentId) => navigate(`/student/${nextStudentId}${courseId ? `?courseId=${courseId}` : ""}`)}
         onAssignedCaseSelect={(caseId) => navigate(`/studentCase/${studentId}/${caseId}`)}
       />
 
