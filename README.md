@@ -107,10 +107,13 @@ What these do:
 
 If migration fails:
 - Migrations usually fail because the database is not running. Try the following:
-- cd ../..
+  
+```bash
+  cd ../..
 - npm run db:up
 - cd apps/backend
 - npm run prisma:migrate
+```
 
 Run them again any time the prisma schema or migrations change.
 
