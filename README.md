@@ -105,6 +105,13 @@ What these do:
 - `npx prisma generate` builds the prisma client
 - `npm run prisma:migrate` applies database migrations to your local database
 
+If migration fails:
+- Migrations usually fail because the database is not running. Try the following:
+- cd ../..
+- npm run db:up
+- cd apps/backend
+- npm run prisma:migrate
+
 Run them again any time the prisma schema or migrations change.
 
 ## 5. Start the App
