@@ -11,6 +11,7 @@ import AccountSettingsPage from "./pages/AccountSettings";
 import LoginPage from "./pages/Login";
 import PortalPage from "./pages/Portal";
 import RegisterPage from "./pages/Register";
+import VerifyEmailPage from "./pages/VerifyEmail";
 import StudentPage from "./pages/student";
 import UnassignedPage from "./pages/Unassigned";
 import RequireRole from "./components/RequireRole";
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/portal" element={<PortalPage />} />
         <Route path="/unassigned" element={<UnassignedPage />} />
         <Route path="/faculty" element={<RequireRole allowed={["faculty", "admin"]}><FacultyPage /></RequireRole>} />

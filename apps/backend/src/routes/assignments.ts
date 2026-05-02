@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
+import { canManageCourse, getManageableCourseIds, isAdminRole, isStudentInCourse } from '../utils/courseAccess';
 
 const router = express.Router();
 
@@ -18,10 +19,6 @@ function parsePositiveInt(value: unknown): number | null {
   return null;
 }
 
-function isFacultyWorkflowRole(role: string | undefined): boolean {
-  return role === 'faculty' || role === 'admin';
-}
-
 // This one checks to see if the user has permission to manage the patient
 async function assertCanManagePatient(
   patientId: number,
@@ -31,9 +28,8 @@ async function assertCanManagePatient(
   // Find the patient by id
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   if (!patient) return { ok: false as const, reason: 'not_found' as const };
-  if (!patient.facultyCreatorId) return { ok: false as const, reason: 'forbidden' as const };
-  if (isFacultyWorkflowRole(role)) return { ok: true as const, patient };
-  if (patient.facultyCreatorId === userId) return { ok: true as const, patient };
+  if (!patient.courseId) return { ok: false as const, reason: 'forbidden' as const };
+  if (await canManageCourse(patient.courseId, userId, role)) return { ok: true as const, patient };
   return { ok: false as const, reason: 'forbidden' as const };
 }
 
@@ -56,12 +52,13 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
+    const manageableCourseIds = await getManageableCourseIds(req.userId!, req.userRole);
     const assignments = await prisma.caseAssignment.findMany({
       where: {
         patient: {
-          facultyCreatorId: {
-            not: null,
-          },
+          ...(isAdminRole(req.userRole)
+            ? { courseId: { not: null } }
+            : { courseId: { in: manageableCourseIds ?? [] } }),
         },
         ...(patientFilter ? { patientId: patientFilter } : {}),
       },
@@ -118,6 +115,11 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
+    if (!(await isStudentInCourse(access.patient.courseId, student.id))) {
+      res.status(400).json({ error: 'Student must be enrolled in the course before assigning this case' });
+      return;
+    }
+
     // Creates the assignment
     const assignment = await prisma.caseAssignment.create({
       data: {
@@ -164,6 +166,7 @@ router.delete('/:assignmentId', async (req: Request, res: Response) => {
           select: {
             id: true,
             facultyCreatorId: true,
+            courseId: true,
             name: true,
             caseTitle: true,
           },
@@ -180,12 +183,12 @@ router.delete('/:assignmentId', async (req: Request, res: Response) => {
       },
     });
 
-    if (!assignment || !assignment.patient.facultyCreatorId) {
+    if (!assignment || !assignment.patient.courseId) {
       res.status(404).json({ error: 'Assignment not found' });
       return;
     }
 
-    if (!isFacultyWorkflowRole(req.userRole) && assignment.patient.facultyCreatorId !== req.userId) {
+    if (!(await canManageCourse(assignment.patient.courseId, req.userId!, req.userRole))) {
       res.status(403).json({ error: 'This assignment is not available in the faculty workflow' });
       return;
     }

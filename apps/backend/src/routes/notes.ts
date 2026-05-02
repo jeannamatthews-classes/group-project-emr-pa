@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
+import { canManageCourse, isStudentInCourse } from '../utils/courseAccess';
 
 const router = express.Router();
 
@@ -38,10 +39,6 @@ function str(value: unknown): string | null {
 function paramString(id: string | string[] | undefined): string {
   const raw = Array.isArray(id) ? id[0] : id;
   return typeof raw === 'string' ? raw : String(raw ?? '');
-}
-
-function isFacultyWorkflowRole(role: string | undefined): boolean {
-  return role === 'faculty' || role === 'admin';
 }
 
 function noteToResponse(note: {
@@ -89,12 +86,17 @@ async function isStudentAssignedToCase(studentId: string, caseId: number): Promi
       patient: {
         select: {
           facultyCreatorId: true,
+          courseId: true,
         },
       },
     },
   });
 
-  return Boolean(assignment && assignment.patient.facultyCreatorId);
+  return Boolean(
+    assignment &&
+      assignment.patient.courseId &&
+      (await isStudentInCourse(assignment.patient.courseId, studentId))
+  );
 }
 
 router.use(authMiddleware);
@@ -345,6 +347,7 @@ router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res:
         patient: {
           select: {
             facultyCreatorId: true,
+            courseId: true,
           },
         },
       },
@@ -359,12 +362,12 @@ router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res:
       return;
     }
 
-    if (!existing.patient.facultyCreatorId) {
+    if (!existing.patient.courseId) {
       res.status(403).json({ error: 'This note is not available in the faculty workflow' });
       return;
     }
 
-    if (!isFacultyWorkflowRole(req.userRole) && existing.patient.facultyCreatorId !== req.userId) {
+    if (!(await canManageCourse(existing.patient.courseId, req.userId!, req.userRole))) {
       res.status(403).json({ error: 'You do not have access to this note' });
       return;
     }
