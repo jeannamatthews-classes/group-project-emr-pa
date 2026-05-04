@@ -66,7 +66,7 @@ In `apps/backend`, create a file named `.env`.
 Copy the values from `apps/backend/.env.template`.
 ```bash
 Copy-Item apps/backend/.env.template apps/backend/.env    // for windows users
-Copy-Item apps/backend/.env.template apps/backend/.env   // for mac & linux users
+cp apps/backend/.env.template apps/backend/.env   // for mac & linux users
 ```
 
 Default local values:
