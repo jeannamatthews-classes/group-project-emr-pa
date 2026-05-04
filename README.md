@@ -135,7 +135,7 @@ npm run dev:frontend
 In the second terminal:
 
 ```bash
-npm run dev:backend
+npm run dev:backend // make sure you are in root else run 'cd ../..' or navigate there
 ```
 
 Keep both running while you work.
