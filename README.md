@@ -75,9 +75,9 @@ Default local values:
 PORT=5001
 CORS_ORIGIN=http://localhost:5173,http://localhost:5174
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/emrpa?schema=public"
-JWT_SECRET=replace_with_a_secure_secret // this is very important, so replace it with some long random text
+JWT_SECRET=replace_with_a_secure_secret // `this is very important, so replace it with some long random text`
 
-DISABLE_EMAIL_VERIFICATION=false // change to true for testing purposes
+DISABLE_EMAIL_VERIFICATION=false // `change to true for testing purposes`
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_SECURE=false
