@@ -27,13 +27,16 @@ model User {
   actedLogs  AuditLog[] @relation("AuditActor")
   targetLogs AuditLog[] @relation("AuditTarget")
   notes      Note[]
+  notesReviewedAsFaculty Note[] @relation("NotesReviewedByFaculty")
 
   patientsCreatedAsFaculty Patient[]        @relation("PatientsCreatedByFaculty")
   caseAssignmentsAsStudent CaseAssignment[] @relation("CaseAssignmentStudent")
   caseAssignmentsAsFaculty CaseAssignment[] @relation("CaseAssignmentFaculty")
   caseLabsUploaded         CaseLab[]        @relation("CaseLabsUploadedByFaculty")
+  caseTemplateLabsUploaded CaseTemplateLab[] @relation("CaseTemplateLabsUploadedByFaculty")
   courseMemberships        CourseMember[]
   coursesCreated           Course[]         @relation("CoursesCreatedByFaculty")
+  caseTemplatesCreated      CaseTemplate[]   @relation("CaseTemplatesCreatedByFaculty")
 }
 
 /// Faculty-created course cohort. Cases, enrolled students, and faculty reviewers are scoped here.
@@ -81,7 +84,7 @@ model Patient {
   dob               DateTime @db.Date
   gender            String
   codeStatus        String
-  /// "pbl" or "sim" — set by faculty when creating the case.
+  /// "pbl" or "sim" - set by faculty when creating the case.
   caseType          String   @default("pbl")
   /// True when the faculty has attached lab data to this case.
   hasLabs           Boolean  @default(false)
@@ -91,11 +94,14 @@ model Patient {
   facultyCreatorId  String?
   /// Course that owns this case.
   courseId          String?
+  /// Optional reusable case bank source used to create this course-owned copy.
+  templateId        String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   facultyCreator  User?            @relation("PatientsCreatedByFaculty", fields: [facultyCreatorId], references: [id], onDelete: SetNull)
   course          Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  template        CaseTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
   chiefComplaints ChiefComplaint[]
   notes           Note[]
   assignments     CaseAssignment[]
@@ -103,6 +109,65 @@ model Patient {
 
   @@index([facultyCreatorId])
   @@index([courseId])
+  @@index([templateId])
+}
+
+/// Reusable faculty case bank entry. Templates are copied into courses as Patient records before assignment/submission.
+model CaseTemplate {
+  id                 String   @id @default(cuid())
+  title              String
+  patientName        String
+  location           String
+  dob                DateTime @db.Date
+  gender             String
+  codeStatus         String
+  caseType           String   @default("pbl")
+  hasLabs            Boolean  @default(false)
+  description        String?
+  createdByFacultyId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdByFaculty User?                         @relation("CaseTemplatesCreatedByFaculty", fields: [createdByFacultyId], references: [id], onDelete: SetNull)
+  chiefComplaints  CaseTemplateChiefComplaint[]
+  caseLabs         CaseTemplateLab[]
+  courseCopies     Patient[]
+
+  @@index([createdByFacultyId])
+  @@index([title])
+  @@index([caseType])
+}
+
+model CaseTemplateChiefComplaint {
+  id         String @id @default(cuid())
+  templateId String
+  text       String
+
+  template CaseTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+/// Lab or diagnostic asset stored with a reusable case bank entry.
+model CaseTemplateLab {
+  id                  String   @id @default(cuid())
+  templateId          String
+  title               String
+  category            String?
+  description         String?
+  originalFilename    String
+  fileUrl             String
+  mimeType            String
+  isVisibleToStudent  Boolean  @default(false)
+  uploadedByFacultyId String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  template          CaseTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  uploadedByFaculty User?        @relation("CaseTemplateLabsUploadedByFaculty", fields: [uploadedByFacultyId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+  @@index([uploadedByFacultyId])
 }
 
 /// Faculty-uploaded lab or diagnostic asset for a case.
@@ -139,7 +204,7 @@ model ChiefComplaint {
   @@index([patientId])
 }
 
-/// Student clinical note per patient — covers all 13 form sections.
+/// Student clinical note per patient - covers all 13 form sections.
 model Note {
   id              String    @id @default(uuid())
   patientId       Int
@@ -168,18 +233,22 @@ model Note {
   grade           Float?
 
   // Faculty feedback
-  feedback        String?
+  feedback            String?
+  reviewedByFacultyId String?
+  reviewedAt          DateTime?
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedByFaculty User? @relation("NotesReviewedByFaculty", fields: [reviewedByFacultyId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([studentId, patientId], name: "studentId_patientId")
+  @@index([reviewedByFacultyId])
 }
 
-/// Links a student to a case (patient) — created by faculty.
+/// Links a student to a case (patient) - created by faculty.
 model CaseAssignment {
   id                  String   @id @default(uuid())
   patientId           Int

@@ -5,19 +5,24 @@ import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@
 import { getDisplayName, getMe, getStoredToken, logout } from "../../services/authApi";
 import {
   facultyAssignCase,
+  facultyCopyCaseTemplateToCourse,
   facultyCreateCase,
   facultyDeleteCase,
   facultyListCases,
+  facultyListCaseTemplates,
   facultyListStudentCases,
   facultyListStudents,
   facultyUnassignCase,
   facultyUploadCasePicture,
   type FacultyCase,
+  type FacultyCaseTemplate,
   type FacultyStudent,
   type FacultyStudentCase,
 } from "../../services/facultyApi";
 import FacultyAssignedCasesCard from "./FacultyAssignedCasesCard";
-import FacultyAvailableCasesCard from "./FacultyAvailableCasesCard";
+import FacultyAvailableCasesCard, {
+  type FacultyAvailableCaseItem,
+} from "./FacultyAvailableCasesCard";
 import FacultyCaseActionDialog from "./FacultyCaseActionDialog";
 import FacultyCreateAssignCaseDialog from "./FacultyCreateAssignCaseDialog";
 import FacultyPageTopBar from "./FacultyPageTopBar";
@@ -28,6 +33,22 @@ import {
 } from "./facultyDashboardTypes";
 import type { CaseActionDialogState } from "./facultyStudentPageTypes";
 
+const SELECTED_COURSE_STORAGE_KEY = "faculty_selected_course_id";
+
+function isRouteNotFound(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes("route not found");
+}
+
+async function listCaseTemplatesIfAvailable(token: string): Promise<FacultyCaseTemplate[]> {
+  try {
+    const { templates } = await facultyListCaseTemplates(token);
+    return templates;
+  } catch (error) {
+    if (!isRouteNotFound(error)) throw error;
+    return [];
+  }
+}
+
 export default function StudentPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const [searchParams] = useSearchParams();
@@ -36,6 +57,7 @@ export default function StudentPage() {
 
   const [students, setStudents] = useState<FacultyStudent[]>([]);
   const [facultyCases, setFacultyCases] = useState<FacultyCase[]>([]);
+  const [caseTemplates, setCaseTemplates] = useState<FacultyCaseTemplate[]>([]);
   const [studentCases, setStudentCases] = useState<FacultyStudentCase[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [assignedCaseSearch, setAssignedCaseSearch] = useState("");
@@ -45,7 +67,7 @@ export default function StudentPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [assigningCaseId, setAssigningCaseId] = useState<number | null>(null);
+  const [assigningCaseKey, setAssigningCaseKey] = useState<string | null>(null);
   const [actionDialog, setActionDialog] = useState<CaseActionDialogState | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -55,6 +77,21 @@ export default function StudentPage() {
   const [pictureFile, setPictureFile] = useState<File | null>(null);
   const [picturePreview, setPicturePreview] = useState<string | null>(null);
   const [newCaseForm, setNewCaseForm] = useState<FacultyCaseFormState>(DEFAULT_FACULTY_CASE_FORM);
+
+  useEffect(() => {
+    if (courseId || !studentId) return;
+
+    const storedCourseId = localStorage.getItem(SELECTED_COURSE_STORAGE_KEY);
+    if (storedCourseId) {
+      navigate(`/student/${studentId}?courseId=${storedCourseId}`, { replace: true });
+    }
+  }, [courseId, navigate, studentId]);
+
+  useEffect(() => {
+    if (courseId) {
+      localStorage.setItem(SELECTED_COURSE_STORAGE_KEY, courseId);
+    }
+  }, [courseId]);
 
   useEffect(() => {
     let active = true;
@@ -69,15 +106,17 @@ export default function StudentPage() {
       }
 
       try {
-        const [{ students: nextStudents }, { cases: nextCases }, me] = await Promise.all([
+        const [{ students: nextStudents }, { cases: nextCases }, templates, me] = await Promise.all([
           facultyListStudents(token, courseId),
           facultyListCases(token, courseId),
+          listCaseTemplatesIfAvailable(token),
           getMe(token),
         ]);
 
         if (!active) return;
         setStudents(nextStudents);
         setFacultyCases(nextCases);
+        setCaseTemplates(templates);
         setIsAdmin(me.user.role === "admin");
         setPageError(null);
       } catch (error) {
@@ -159,14 +198,50 @@ export default function StudentPage() {
       (medicalCase.patientName ?? medicalCase.patient).toLowerCase().includes(query)
     );
   });
-  const availableCases = facultyCases.filter(
-    (medicalCase) => !studentCases.some((studentCase) => studentCase.id === medicalCase.id)
+  const assignedCaseIds = new Set(studentCases.map((medicalCase) => medicalCase.id));
+  const copiedTemplateIds = new Set(
+    facultyCases
+      .map((medicalCase) => medicalCase.templateId)
+      .filter((templateId): templateId is string => Boolean(templateId))
   );
+  const assignedTemplateIds = new Set(
+    studentCases
+      .map((medicalCase) => medicalCase.templateId)
+      .filter((templateId): templateId is string => Boolean(templateId))
+  );
+
+  const availableCases: FacultyAvailableCaseItem[] = [
+    ...facultyCases
+      .filter((medicalCase) => !assignedCaseIds.has(medicalCase.id))
+      .map((medicalCase): FacultyAvailableCaseItem => ({
+        source: "course",
+        key: `course-${medicalCase.id}`,
+        id: medicalCase.id,
+        patientName: medicalCase.patientName ?? medicalCase.patient,
+        caseTitle: medicalCase.caseTitle ?? medicalCase.name,
+        caseType: medicalCase.caseType,
+        hasLabs: medicalCase.hasLabs,
+        submittedNoteCount: medicalCase.submittedNoteCount,
+        assignmentCount: medicalCase.assignments.length,
+        case: medicalCase,
+      })),
+    ...caseTemplates
+      .filter((template) => !copiedTemplateIds.has(template.id) && !assignedTemplateIds.has(template.id))
+      .map((template): FacultyAvailableCaseItem => ({
+        source: "bank",
+        key: `bank-${template.id}`,
+        templateId: template.id,
+        patientName: template.patientName,
+        caseTitle: template.title,
+        caseType: template.caseType,
+        hasLabs: template.hasLabs,
+      })),
+  ];
   const filteredAvailableCases = availableCases.filter((medicalCase) => {
     const query = availableCaseSearch.toLowerCase();
     return (
-      (medicalCase.caseTitle ?? medicalCase.name).toLowerCase().includes(query) ||
-      (medicalCase.patientName ?? medicalCase.patient).toLowerCase().includes(query)
+      medicalCase.caseTitle.toLowerCase().includes(query) ||
+      medicalCase.patientName.toLowerCase().includes(query)
     );
   });
 
@@ -187,19 +262,21 @@ export default function StudentPage() {
     const token = getStoredToken();
     if (!token || !studentId) return;
 
-    const [{ students: nextStudents }, { cases: nextFacultyCases }, { cases: nextStudentCases }] =
+    const [{ students: nextStudents }, { cases: nextFacultyCases }, { cases: nextStudentCases }, templates] =
       await Promise.all([
         facultyListStudents(token, courseId),
         facultyListCases(token, courseId),
         facultyListStudentCases(token, studentId, courseId),
+        listCaseTemplatesIfAvailable(token),
       ]);
 
     setStudents(nextStudents);
     setFacultyCases(nextFacultyCases);
     setStudentCases(nextStudentCases);
+    setCaseTemplates(templates);
   }
 
-  async function handleAssignExistingCase(caseId: number) {
+  async function handleAssignExistingCase(medicalCase: FacultyAvailableCaseItem) {
     if (!selectedStudent) {
       setActionError("Select a valid student before assigning a case.");
       return;
@@ -212,21 +289,48 @@ export default function StudentPage() {
     }
 
     try {
-      setAssigningCaseId(caseId);
+      setAssigningCaseKey(medicalCase.key);
       setActionError(null);
-      const assignedCase = facultyCases.find((medicalCase) => medicalCase.id === caseId) ?? null;
-      await facultyAssignCase(token, {
-        patientId: caseId,
-        studentId: selectedStudent.id,
-      });
+      let patientId: number;
+      let copiedPatientId: number | null = null;
+
+      if (medicalCase.source === "bank") {
+        if (!courseId) {
+          setActionError("Select a course before assigning a case bank case.");
+          return;
+        }
+
+        const { case: copiedCase } = await facultyCopyCaseTemplateToCourse(
+          token,
+          medicalCase.templateId,
+          courseId
+        );
+        patientId = copiedCase.id;
+        copiedPatientId = copiedCase.id;
+      } else {
+        patientId = medicalCase.id;
+      }
+
+      try {
+        await facultyAssignCase(token, {
+          patientId,
+          studentId: selectedStudent.id,
+        });
+      } catch (assignError) {
+        if (copiedPatientId !== null) {
+          await facultyDeleteCase(token, copiedPatientId).catch(() => undefined);
+        }
+        throw assignError;
+      }
+
       await refreshStudentAndCases();
       setActionMessage(
-        `Assigned ${assignedCase?.patientName ?? assignedCase?.patient ?? "case"} to ${getDisplayName(selectedStudent)}.`
+        `Assigned ${medicalCase.patientName} to ${getDisplayName(selectedStudent)}.`
       );
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to assign case.");
     } finally {
-      setAssigningCaseId(null);
+      setAssigningCaseKey(null);
     }
   }
 
@@ -238,6 +342,10 @@ export default function StudentPage() {
 
     if (!newCaseForm.name.trim()) {
       setActionError("Patient name is required.");
+      return;
+    }
+    if (!courseId) {
+      setActionError("Select a course before creating and assigning a case.");
       return;
     }
 
@@ -259,14 +367,19 @@ export default function StudentPage() {
         location: newCaseForm.location.trim() || undefined,
         caseType: newCaseForm.caseType,
         hasLabs: newCaseForm.hasLabs,
-        courseId: courseId ?? "",
+        courseId,
       });
 
-      if (pictureFile) {
-        await facultyUploadCasePicture(token, created.id, pictureFile);
+      try {
+        if (pictureFile) {
+          await facultyUploadCasePicture(token, created.id, pictureFile);
+        }
+        await facultyAssignCase(token, { patientId: created.id, studentId: selectedStudent.id });
+      } catch (createAssignError) {
+        await facultyDeleteCase(token, created.id).catch(() => undefined);
+        throw createAssignError;
       }
 
-      await facultyAssignCase(token, { patientId: created.id, studentId: selectedStudent.id });
       await refreshStudentAndCases();
       setActionMessage(`Created and assigned a new case to ${getDisplayName(selectedStudent)}.`);
       setAssignDialogOpen(false);
@@ -345,7 +458,9 @@ export default function StudentPage() {
         onStudentSearchChange={setStudentSearch}
         onAssignedCaseSearchChange={setAssignedCaseSearch}
         onStudentSelect={(nextStudentId) => navigate(`/student/${nextStudentId}${courseId ? `?courseId=${courseId}` : ""}`)}
-        onAssignedCaseSelect={(caseId) => navigate(`/studentCase/${studentId}/${caseId}`)}
+        onAssignedCaseSelect={(caseId) =>
+          navigate(`/studentCase/${studentId}/${caseId}${courseId ? `?courseId=${courseId}` : ""}`)
+        }
       />
 
       <Box sx={{ flex: 1, ml: "320px", mt: { xs: "56px", sm: "64px" }, p: { xs: 2, md: 4 } }}>
@@ -415,7 +530,9 @@ export default function StudentPage() {
               <FacultyAssignedCasesCard
                 studentCasesLoading={studentCasesLoading}
                 studentCases={studentCases}
-                onReviewCase={(caseId) => navigate(`/studentCase/${studentId}/${caseId}`)}
+                onReviewCase={(caseId) =>
+                  navigate(`/studentCase/${studentId}/${caseId}${courseId ? `?courseId=${courseId}` : ""}`)
+                }
                 onRequestUnassign={(medicalCase) =>
                   setActionDialog({
                     mode: "unassign",
@@ -438,9 +555,9 @@ export default function StudentPage() {
               <FacultyAvailableCasesCard
                 availableCaseSearch={availableCaseSearch}
                 filteredAvailableCases={filteredAvailableCases}
-                assigningCaseId={assigningCaseId}
+                assigningCaseKey={assigningCaseKey}
                 onAvailableCaseSearchChange={setAvailableCaseSearch}
-                onAssignCase={(caseId) => void handleAssignExistingCase(caseId)}
+                onAssignCase={(medicalCase) => void handleAssignExistingCase(medicalCase)}
                 onRequestDelete={(medicalCase) =>
                   setActionDialog({
                     mode: "delete",

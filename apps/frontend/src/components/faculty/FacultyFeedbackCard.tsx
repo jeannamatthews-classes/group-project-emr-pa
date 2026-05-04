@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Stack, TextField, Typography } from "@mui/material";
 
+import { getDisplayName } from "../../services/authApi";
 import type { FacultyCaseNote } from "../../services/facultyApi";
 
 type FacultyFeedbackCardProps = {
@@ -34,7 +35,9 @@ export default function FacultyFeedbackCard({
 
         {note.feedback && !saveMessage && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            Existing faculty feedback: {note.feedback}
+            Existing faculty feedback
+            {note.reviewedByFaculty ? ` from ${getDisplayName(note.reviewedByFaculty)}` : ""}:{" "}
+            {note.feedback}
           </Alert>
         )}
 

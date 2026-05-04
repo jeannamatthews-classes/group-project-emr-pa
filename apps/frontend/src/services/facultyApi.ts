@@ -115,12 +115,33 @@ export type FacultyCase = {
   profilePictureUrl: string | null;
   facultyCreatorId?: string | null;
   courseId?: string | null;
+  templateId?: string | null;
   assignments: FacultyCaseAssignment[];
   totalNoteCount: number;
   submittedNoteCount: number;
   pendingSubmissionCount: number;
   pendingReviewCount: number;
   latestSubmittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FacultyCaseTemplate = {
+  id: string;
+  title: string;
+  patientName: string;
+  location: string;
+  dob: string;
+  gender: string;
+  codeStatus: string;
+  caseType: string;
+  hasLabs: boolean;
+  description: string | null;
+  createdByFacultyId: string | null;
+  chiefComplaints: Array<{
+    id: string;
+    complaintText: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -165,6 +186,15 @@ export type FacultyCaseNote = {
   submittedAt: string | null;
   grade: number | null;
   feedback: string | null;
+  reviewedByFacultyId: string | null;
+  reviewedAt: string | null;
+  reviewedByFaculty?: {
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -176,6 +206,15 @@ export type FacultyStudentCaseNoteSummary = {
   submittedAt: string | null;
   grade: number | null;
   feedback: string | null;
+  reviewedByFacultyId?: string | null;
+  reviewedAt?: string | null;
+  reviewedByFaculty?: {
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -194,6 +233,7 @@ export type FacultyStudentCase = {
   caseType: string;
   hasLabs: boolean;
   profilePictureUrl: string | null;
+  templateId?: string | null;
   assignmentId: string;
   assignedAt: string;
   assignedByFaculty: {
@@ -298,6 +338,70 @@ export async function facultyDeleteCourse(
     headers: authHeaders(token),
   });
   return parseResponse<{ deletedCourse: { id: string; name: string; deletedCaseCount: number } }>(response);
+}
+
+export async function facultyListCaseTemplates(token: string): Promise<{ templates: FacultyCaseTemplate[] }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/case-templates`, {
+    method: "GET",
+    headers: authHeaders(token),
+  });
+  return parseResponse<{ templates: FacultyCaseTemplate[] }>(response);
+}
+
+export async function facultyCreateCaseTemplate(
+  token: string,
+  payload: {
+    title: string;
+    patientName: string;
+    location?: string;
+    dob?: string;
+    gender?: string;
+    codeStatus?: string;
+    caseType?: string;
+    hasLabs?: boolean;
+    description?: string;
+    chiefComplaints?: string[];
+  }
+): Promise<{ template: FacultyCaseTemplate }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/case-templates`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<{ template: FacultyCaseTemplate }>(response);
+}
+
+export async function facultyCopyCaseTemplateToCourse(
+  token: string,
+  templateId: string,
+  courseId: string
+): Promise<{ case: { id: number } }> {
+  const response = await fetch(
+    `${FACULTY_BASE_URL}/case-templates/${encodeURIComponent(templateId)}/copy-to-course`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(token),
+      },
+      body: JSON.stringify({ courseId }),
+    }
+  );
+  return parseResponse<{ case: { id: number } }>(response);
+}
+
+export async function facultyCreateCaseTemplateFromCase(
+  token: string,
+  caseId: number
+): Promise<{ template: FacultyCaseTemplate; alreadySaved: boolean }> {
+  const response = await fetch(`${FACULTY_BASE_URL}/cases/${encodeURIComponent(String(caseId))}/case-template`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  return parseResponse<{ template: FacultyCaseTemplate; alreadySaved: boolean }>(response);
 }
 
 export async function facultyListStudents(

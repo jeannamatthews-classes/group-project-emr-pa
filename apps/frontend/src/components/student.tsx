@@ -12,7 +12,6 @@ import {
   Chip,
   CircularProgress,
   Drawer,
-  //IconButton,
   List,
   ListItemButton,
   ListItemText,
@@ -26,7 +25,6 @@ import {
 import LogoutIcon from "@mui/icons-material/Logout";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-//import MenuIcon from "@mui/icons-material/Menu";
 import SettingsIcon from "@mui/icons-material/Settings";
 
 import {
@@ -39,6 +37,7 @@ import {
 } from "../services/casesApi";
 import type {
   AssignedCase,
+  FacultyReviewer,
   NoteData,
   GradeNote,
   SaveNotePayload,
@@ -53,8 +52,6 @@ import {
 } from "../services/authApi";
 import { useAuthenticatedAssetUrl } from "../hooks/useAuthenticatedAssetUrl";
 
-// ─── Section config ───────────────────────────────────────────────────────────
-
 type SectionKey =
   | "hpi" | "med" | "exam" | "aller" | "assess"
   | "fhist" | "shist" | "proc" | "diag" | "lad"
@@ -67,6 +64,8 @@ type NoteFields = SaveNotePayload & {
   submittedAt?: string | null;
   grade?: number | null;
   feedback?: string | null;
+  reviewedByFaculty?: FacultyReviewer | null;
+  reviewedAt?: string | null;
 };
 
 const SECTIONS: { key: SectionKey; label: string; field: NoteField }[] = [
@@ -95,11 +94,16 @@ const DEFAULT_OPEN: OpenSections = {
 
 type PortalCase = AssignedCase;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function getInitials(c: AssignedCase): string {
   const name = c.patientName ?? c.name;
   return name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+}
+
+function getCourseLabel(c: {
+  course?: { name: string; code: string | null } | null;
+}): string | null {
+  if (!c.course) return null;
+  return c.course.code ? `${c.course.code} - ${c.course.name}` : c.course.name;
 }
 
 function noteToFields(note: NoteData): NoteFields {
@@ -123,6 +127,8 @@ function noteToFields(note: NoteData): NoteFields {
     submittedAt: note.submittedAt,
     grade: note.grade,
     feedback: note.feedback,
+    reviewedByFaculty: note.reviewedByFaculty ?? null,
+    reviewedAt: note.reviewedAt,
   };
 }
 
@@ -148,8 +154,6 @@ function toSavePayload(note: NoteFields): SaveNotePayload {
     learningIssues: note.learningIssues,
   };
 }
-
-// ─── Grades panel ─────────────────────────────────────────────────────────────
 
 function GradesFeedbackPanel({ grades }: { grades: GradeNote[] }) {
   if (grades.length === 0) {
@@ -179,6 +183,12 @@ function GradesFeedbackPanel({ grades }: { grades: GradeNote[] }) {
               </Typography>
             )}
             <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              {getCourseLabel(g.patient) && (
+                <Chip label={getCourseLabel(g.patient)} variant="outlined" />
+              )}
+              {g.reviewedByFaculty && (
+                <Chip label={`Reviewed by ${getDisplayName(g.reviewedByFaculty)}`} variant="outlined" />
+              )}
               {g.grade !== null ? (
                 <Chip
                   label={`${g.grade} / 100`}
@@ -250,8 +260,6 @@ function StudentLabImage({ lab }: { lab: StudentCaseLab }) {
   );
 }
 
-// ─── Sidebar group ────────────────────────────────────────────────────────────
-
 function CaseGroup({
   label,
   cases,
@@ -289,7 +297,9 @@ function CaseGroup({
             >
               <ListItemText
                 primary={c.patientName ?? c.name}
-                secondary={c.caseTitle || "No chief complaint listed"}
+                secondary={[c.caseTitle || "No chief complaint listed", getCourseLabel(c)]
+                  .filter(Boolean)
+                  .join(" - ")}
                 slotProps={{
                   primary: { variant: "body2" },
                   secondary: { variant: "caption" },
@@ -303,34 +313,27 @@ function CaseGroup({
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 export default function Student() {
   const navigate = useNavigate();
   const hasAuthToken = Boolean(getStoredToken());
   const appBarOffset = { xs: "56px", sm: "64px" };
 
-  // ── cases & selection
   const [cases, setCases] = useState<PortalCase[]>([]);
   const [selectedCase, setSelectedCase] = useState<PortalCase | null>(null);
   const [examSelected, setExamSelected] = useState(false);
   const [, setInteractionVersion] = useState(0);
 
-  // ── current note form
   const [noteFields, setNoteFields] = useState<NoteFields>({ caseId: 0, hpi: "", exam: "" });
   const [caseLabs, setCaseLabs] = useState<StudentCaseLab[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
   const [labsError, setLabsError] = useState<string | null>(null);
 
-  // ── tabs
   const [activeTab, setActiveTab] = useState<0 | 1>(0);
   const [grades, setGrades] = useState<GradeNote[]>([]);
   const [gradesLoaded, setGradesLoaded] = useState(false);
 
-  // ── sidebar visibility toggle
-  const [sidebarVisible] = useState(true);
+  const sidebarVisible = true;
 
-  // ── sidebar collapse state
   const [sidebarOpen, setSidebarOpen] = useState({
     pblCase: true,
     pblLabs: true,
@@ -338,13 +341,10 @@ export default function Student() {
     simLabs: true,
   });
 
-  // ── section collapse state
   const [openSections, setOpenSections] = useState<OpenSections>(DEFAULT_OPEN);
 
-  // ── search
   const [search, setSearch] = useState("");
 
-  // ── snackbars
   const [loginSuccessOpen, setLoginSuccessOpen] = useState(() => {
     const isFreshLogin = sessionStorage.getItem("emr_login_success") === "true";
     if (isFreshLogin) sessionStorage.removeItem("emr_login_success");
@@ -360,7 +360,6 @@ export default function Student() {
     selectedCase?.profilePictureUrl ?? null
   );
 
-  // ─── Mount: fetch assigned cases + show login notifications ──────────────
   useEffect(() => {
     let active = true;
 
@@ -408,7 +407,6 @@ export default function Student() {
     };
   }, []);
 
-  // ─── Case selection ──────────────────────────────────────────────────────
   const handleCaseSelect = async (c: PortalCase) => {
     touchCase(c.id);
     setInteractionVersion((v) => v + 1);
@@ -447,7 +445,6 @@ export default function Student() {
     setLabsLoading(false);
   };
 
-  // ─── Tab change ──────────────────────────────────────────────────────────
   const handleTabChange = (_: SyntheticEvent, newVal: 0 | 1) => {
     setActiveTab(newVal);
     if (newVal === 1 && !gradesLoaded) {
@@ -472,17 +469,14 @@ export default function Student() {
     }
   }
 
-  // ─── Section toggle ──────────────────────────────────────────────────────
   const toggleSection = (key: SectionKey) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // ─── Field update ────────────────────────────────────────────────────────
   const setField = (field: NoteField, value: string) => {
     setNoteFields((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ─── Save notes ──────────────────────────────────────────────────────────
   const handleSave = async () => {
     const token = getStoredToken();
     if (!selectedCase) return;
@@ -512,7 +506,6 @@ export default function Student() {
     }
   };
 
-  // ─── Submit assignment ───────────────────────────────────────────────────
   const handleSubmit = async () => {
     const token = getStoredToken();
     if (!token) {
@@ -529,7 +522,7 @@ export default function Student() {
     try {
       const { note } = await submitNote(token, noteFields.id);
       setNoteFields(noteToFields(note));
-      setGradesLoaded(false); // invalidate grades cache
+      setGradesLoaded(false);
       setSaveSnack({
         open: true,
         message: "Assignment submitted! Your instructor will review it shortly.",
@@ -544,13 +537,11 @@ export default function Student() {
     }
   };
 
-  // ─── Logout ──────────────────────────────────────────────────────────────
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  // ─── Derived sidebar groups ───────────────────────────────────────────────
   const filtered = cases.filter((c) =>
     (c.caseTitle || c.name).toLowerCase().includes(search.toLowerCase())
   );
@@ -562,23 +553,15 @@ export default function Student() {
   const showLabSection = Boolean(selectedCase?.hasLabs);
   const selectedPatientName = selectedCase?.patientName ?? selectedCase?.name ?? "";
   const selectedChiefComplaint = selectedCase?.caseTitle || "No chief complaint listed";
+  const selectedCourseLabel = selectedCase ? getCourseLabel(selectedCase) : null;
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f4f7fb" }}>
-      {/* ── Top AppBar ── */}
       <AppBar
         position="fixed"
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: "#1a3a5c" }}
       >
         <Toolbar>
-          {/* <IconButton
-            color="inherit"
-            onClick={() => setSidebarVisible((v) => !v)} // just hiding this sidebar
-            sx={{ mr: 1 }} // it is kind of pointless. b/c there is enough space 
-          > // and there is no dynamic resizing when it is hidden, so it just leaves an empty gap. better to just let it be permanently visible for now.
-            <MenuIcon /> 
-          </IconButton> */}
           <Typography
             variant="h6"
             fontWeight={700}
@@ -606,7 +589,6 @@ export default function Student() {
         </Toolbar>
       </AppBar>
 
-      {/* ── Left Sidebar ── */}
       <Drawer
         variant="persistent"
         anchor="left"
@@ -640,7 +622,6 @@ export default function Student() {
             sx={{ mb: 2 }}
           />
 
-          {/* PBL Cases section */}
           <Typography
             variant="overline"
             sx={{ px: 1, color: "#1a3a5c", fontWeight: 700, letterSpacing: 1 }}
@@ -666,7 +647,6 @@ export default function Student() {
             />
           </List>
 
-          {/* SIM Cases section */}
           <Typography
             variant="overline"
             sx={{ px: 1, color: "#1a3a5c", fontWeight: 700, letterSpacing: 1 }}
@@ -698,7 +678,6 @@ export default function Student() {
             </Typography>
           )}
 
-          {/* Exams section */}
           <Box sx={{ mt: 2, borderTop: "1px solid #dbe4f0", pt: 2 }}>
             <Typography
               variant="overline"
@@ -722,7 +701,6 @@ export default function Student() {
         </Box>
       </Drawer>
 
-      {/* ── Main Content ── */}
       <Box
         sx={{
           flex: 1,
@@ -760,7 +738,6 @@ export default function Student() {
           </Box>
         ) : (
           <Box sx={{ maxWidth: 900 }}>
-            {/* ── Case Header ── */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
               <Avatar
                 src={selectedCasePictureUrl ?? undefined}
@@ -790,6 +767,9 @@ export default function Student() {
                   {selectedCase.hasLabs && (
                     <Chip label="Labs" size="small" variant="outlined" color="info" />
                   )}
+                  {selectedCourseLabel && (
+                    <Chip label={selectedCourseLabel} size="small" variant="outlined" />
+                  )}
                   {selectedCase.assignedByFaculty && (
                     <Chip
                       label={`Assigned by ${getDisplayName(selectedCase.assignedByFaculty)}`}
@@ -804,7 +784,6 @@ export default function Student() {
               </Box>
             </Box>
 
-            {/* ── Patient Info Card ── */}
             <Card variant="outlined" sx={{ mb: 3, borderRadius: 2, bgcolor: "#f8fafc" }}>
               <CardContent>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
@@ -817,11 +796,12 @@ export default function Student() {
                   <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, flex: 1, minWidth: 280 }}>
                     {[
                       { label: "Patient Name", value: selectedPatientName },
-                      { label: "Chief Complaint", value: selectedCase.caseTitle || "—" },
-                      { label: "Date of Birth", value: selectedCase.dob ? new Date(selectedCase.dob).toLocaleDateString() : "—" },
-                      { label: "Gender", value: selectedCase.gender || "—" },
-                      { label: "Code Status", value: selectedCase.codeStatus || "—" },
-                      { label: "Location", value: selectedCase.location || "—" },
+                      { label: "Course", value: selectedCourseLabel ?? "Not listed" },
+                      { label: "Chief Complaint", value: selectedCase.caseTitle || "Not listed" },
+                      { label: "Date of Birth", value: selectedCase.dob ? new Date(selectedCase.dob).toLocaleDateString() : "Not listed" },
+                      { label: "Gender", value: selectedCase.gender || "Not listed" },
+                      { label: "Code Status", value: selectedCase.codeStatus || "Not listed" },
+                      { label: "Location", value: selectedCase.location || "Not listed" },
                     ].map(({ label, value }) => (
                       <Box key={label}>
                         <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
@@ -837,7 +817,6 @@ export default function Student() {
               </CardContent>
             </Card>
 
-            {/* ── Tabs ── */}
             <Tabs
               value={activeTab}
               onChange={handleTabChange}
@@ -847,7 +826,6 @@ export default function Student() {
               <Tab label="Grades & Feedback" />
             </Tabs>
 
-            {/* ── Tab 0: Case Notes ── */}
             {activeTab === 0 && (
               <>
                 {noteFields.isSubmitted && (
@@ -873,6 +851,12 @@ export default function Student() {
                         {noteFields.submittedAt && (
                           <Chip
                             label={`Submitted ${new Date(noteFields.submittedAt).toLocaleDateString()}`}
+                            variant="outlined"
+                          />
+                        )}
+                        {noteFields.reviewedByFaculty && (
+                          <Chip
+                            label={`Reviewed by ${getDisplayName(noteFields.reviewedByFaculty)}`}
                             variant="outlined"
                           />
                         )}
@@ -1021,15 +1005,11 @@ export default function Student() {
               </>
             )}
 
-            {/* ── Tab 1: Grades & Feedback ── */}
             {activeTab === 1 && <GradesFeedbackPanel grades={grades} />}
           </Box>
         )}
       </Box>
 
-      {/* ── Snackbars ── */}
-
-      {/* Login success toast */}
       <Snackbar
         open={loginSuccessOpen}
         autoHideDuration={3000}
@@ -1046,7 +1026,6 @@ export default function Student() {
         </Alert>
       </Snackbar>
 
-      {/* Case assignment notice */}
       <Snackbar
         open={!!assignmentNotice}
         autoHideDuration={8000}
@@ -1063,7 +1042,6 @@ export default function Student() {
         </Alert>
       </Snackbar>
 
-      {/* Save / submit feedback */}
       <Snackbar
         open={saveSnack.open}
         autoHideDuration={4000}

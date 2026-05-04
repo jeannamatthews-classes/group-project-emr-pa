@@ -27,11 +27,14 @@ type FacultyCaseDialogProps = {
   deletingCase: boolean;
   caseForm: FacultyCaseFormState;
   picturePreview: string | null;
+  saveAsTemplate?: boolean;
+  caseAlreadySavedToBank?: boolean;
   onClose: () => void;
   onSave: () => void;
   onDelete: () => void;
   onPictureChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onCaseFormChange: (nextForm: FacultyCaseFormState) => void;
+  onSaveAsTemplateChange?: (checked: boolean) => void;
 };
 
 export default function FacultyCaseDialog({
@@ -41,11 +44,14 @@ export default function FacultyCaseDialog({
   deletingCase,
   caseForm,
   picturePreview,
+  saveAsTemplate = false,
+  caseAlreadySavedToBank = false,
   onClose,
   onSave,
   onDelete,
   onPictureChange,
   onCaseFormChange,
+  onSaveAsTemplateChange,
 }: FacultyCaseDialogProps) {
   const isBusy = savingCase || deletingCase;
 
@@ -157,6 +163,44 @@ export default function FacultyCaseDialog({
             Faculty can upload labs later.
           </Typography>
         </Box>
+
+        {editingCaseId === null ? (
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={saveAsTemplate}
+                  onChange={(event) => onSaveAsTemplateChange?.(event.target.checked)}
+                />
+              }
+              label="Save this case to the case bank"
+            />
+            <Typography variant="body2" color="text.secondary">
+              The case bank stores a copy of this case. This course will have its own copy for
+              assignments and submissions.
+            </Typography>
+          </Box>
+        ) : caseAlreadySavedToBank ? (
+          <Typography variant="body2" color="text.secondary">
+            This case is already in the case bank.
+          </Typography>
+        ) : (
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={saveAsTemplate}
+                  onChange={(event) => onSaveAsTemplateChange?.(event.target.checked)}
+                />
+              }
+              label="Add this case to the case bank"
+            />
+            <Typography variant="body2" color="text.secondary">
+              The case bank stores a copy of this case. This course will keep its own case for
+              assignments and submissions.
+            </Typography>
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>

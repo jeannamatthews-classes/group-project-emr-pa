@@ -133,6 +133,32 @@ export function resolveExistingUploadPathFromUrl(fileUrl: string): string | null
   return null;
 }
 
+export function copyUploadFileToSubdirectory(
+  fileUrl: string,
+  subdirectory: string,
+  originalFilename?: string
+): string {
+  const sourcePath = resolveExistingUploadPathFromUrl(fileUrl);
+  if (!sourcePath) {
+    throw new Error(`Stored upload file is missing for ${fileUrl}`);
+  }
+
+  const destination = path.join(uploadsRoot, subdirectory);
+  ensureDirectoryExists(destination);
+
+  const extension = path.extname(originalFilename || sourcePath) || path.extname(sourcePath);
+  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+  const destinationPath = path.join(destination, filename);
+  fs.copyFileSync(sourcePath, destinationPath);
+
+  return buildUploadUrl({
+    filename,
+    originalname: originalFilename || path.basename(sourcePath),
+    mimetype: '',
+    destination,
+  });
+}
+
 export function deleteUploadFileIfExists(fileUrl: string): void {
   const relativePath = getRelativeUploadPath(fileUrl);
   if (!relativePath) {

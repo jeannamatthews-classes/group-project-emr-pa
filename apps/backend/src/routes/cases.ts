@@ -30,6 +30,7 @@ function patientToCase(p: {
 	profilePictureUrl?: string | null;
 	facultyCreatorId?: string | null;
 	courseId?: string | null;
+	templateId?: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }) {
@@ -50,6 +51,7 @@ function patientToCase(p: {
 		profilePictureUrl: p.profilePictureUrl ?? null,
 		facultyCreatorId: p.facultyCreatorId ?? null,
 		courseId: p.courseId ?? null,
+		templateId: p.templateId ?? null,
 		createdAt: p.createdAt,
 		updatedAt: p.updatedAt,
 	};

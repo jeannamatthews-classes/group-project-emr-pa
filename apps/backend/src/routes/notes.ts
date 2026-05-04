@@ -62,11 +62,21 @@ function noteToResponse(note: {
   submittedAt: Date | null;
   grade: number | null;
   feedback: string | null;
+  reviewedByFacultyId: string | null;
+  reviewedAt: Date | null;
+  reviewedByFaculty?: {
+    id: string;
+    username: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
   return {
     ...note,
+    reviewedByFaculty: note.reviewedByFaculty ?? null,
     caseId: note.patientId,
     assess: note.assessment ?? '',
     treat: note.treatmentPlan ?? '',
@@ -101,7 +111,7 @@ async function isStudentAssignedToCase(studentId: string, caseId: number): Promi
 
 router.use(authMiddleware);
 
-// GET /api/notes — get notes for logged-in student
+// GET /api/notes - get notes for logged-in student
 router.get('/', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -138,6 +148,11 @@ router.get('/', async (req: Request, res: Response) => {
 
     const note = await prisma.note.findUnique({
       where: { studentId_patientId: { studentId, patientId: caseIdParsed } },
+      include: {
+        reviewedByFaculty: {
+          select: { id: true, username: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
 
     res.json({ note: note ? noteToResponse(note) : null });
@@ -147,7 +162,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/notes — upsert note for logged-in student
+// POST /api/notes - upsert note for logged-in student
 router.post('/', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -223,7 +238,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/notes/:id — update existing note
+// PUT /api/notes/:id - update existing note
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -280,7 +295,7 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/notes/:id/submit — student submits their assignment
+// POST /api/notes/:id/submit - student submits their assignment
 router.post('/:id/submit', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -314,7 +329,7 @@ router.post('/:id/submit', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/notes/:id/feedback — faculty adds feedback and/or grade
+// POST /api/notes/:id/feedback - faculty adds feedback and/or grade
 router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res: Response) => {
   try {
     const noteId = paramString(req.params.id);
@@ -377,6 +392,13 @@ router.post('/:id/feedback', facultyOrAdminMiddleware, async (req: Request, res:
       data: {
         ...(feedback !== null && { feedback }),
         ...(grade !== null && { grade }),
+        reviewedByFacultyId: req.userId!,
+        reviewedAt: new Date(),
+      },
+      include: {
+        reviewedByFaculty: {
+          select: { id: true, username: true, firstName: true, lastName: true, email: true },
+        },
       },
     });
 

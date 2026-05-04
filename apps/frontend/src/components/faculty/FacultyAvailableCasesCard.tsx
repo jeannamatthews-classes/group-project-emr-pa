@@ -13,19 +13,42 @@ import {
 
 import type { FacultyCase } from "../../services/facultyApi";
 
+export type FacultyAvailableCaseItem =
+  | {
+      source: "course";
+      key: string;
+      id: number;
+      patientName: string;
+      caseTitle: string;
+      caseType: string;
+      hasLabs: boolean;
+      submittedNoteCount: number;
+      assignmentCount: number;
+      case: FacultyCase;
+    }
+  | {
+      source: "bank";
+      key: string;
+      templateId: string;
+      patientName: string;
+      caseTitle: string;
+      caseType: string;
+      hasLabs: boolean;
+    };
+
 type FacultyAvailableCasesCardProps = {
   availableCaseSearch: string;
-  filteredAvailableCases: FacultyCase[];
-  assigningCaseId: number | null;
+  filteredAvailableCases: FacultyAvailableCaseItem[];
+  assigningCaseKey: string | null;
   onAvailableCaseSearchChange: (value: string) => void;
-  onAssignCase: (caseId: number) => void;
+  onAssignCase: (medicalCase: FacultyAvailableCaseItem) => void;
   onRequestDelete: (medicalCase: FacultyCase) => void;
 };
 
 export default function FacultyAvailableCasesCard({
   availableCaseSearch,
   filteredAvailableCases,
-  assigningCaseId,
+  assigningCaseKey,
   onAvailableCaseSearchChange,
   onAssignCase,
   onRequestDelete,
@@ -56,7 +79,7 @@ export default function FacultyAvailableCasesCard({
         ) : (
           <Stack spacing={2}>
             {filteredAvailableCases.map((medicalCase) => (
-              <Card key={medicalCase.id} variant="outlined" sx={{ borderRadius: 2 }}>
+              <Card key={medicalCase.key} variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardContent>
                   <Box
                     sx={{
@@ -68,19 +91,24 @@ export default function FacultyAvailableCasesCard({
                   >
                     <Box>
                       <Typography fontWeight={700}>
-                        {medicalCase.patientName ?? medicalCase.patient}
+                        {medicalCase.patientName}
                       </Typography>
                       <Typography color="text.secondary">
-                        {medicalCase.caseTitle ?? medicalCase.name}
+                        {medicalCase.caseTitle}
                       </Typography>
-                      <Typography color="text.secondary">
-                        {medicalCase.submittedNoteCount}/{medicalCase.assignments.length} submitted
-                      </Typography>
+                      {medicalCase.source === "course" && (
+                        <Typography color="text.secondary">
+                          {medicalCase.submittedNoteCount}/{medicalCase.assignmentCount} submitted
+                        </Typography>
+                      )}
 
                       <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
                         <Chip label={medicalCase.caseType.toUpperCase()} size="small" />
                         {medicalCase.hasLabs && (
                           <Chip label="Labs" size="small" color="info" variant="outlined" />
+                        )}
+                        {medicalCase.source === "bank" && (
+                          <Chip label="Case Bank" size="small" color="success" variant="outlined" />
                         )}
                       </Stack>
                     </Box>
@@ -101,26 +129,28 @@ export default function FacultyAvailableCasesCard({
                           fontWeight: 700,
                           minWidth: 104,
                         }}
-                        onClick={() => onAssignCase(medicalCase.id)}
-                        disabled={assigningCaseId === medicalCase.id}
+                        onClick={() => onAssignCase(medicalCase)}
+                        disabled={assigningCaseKey === medicalCase.key}
                         startIcon={
-                          assigningCaseId === medicalCase.id ? (
+                          assigningCaseKey === medicalCase.key ? (
                             <CircularProgress size={16} color="inherit" />
                           ) : null
                         }
                       >
-                        {assigningCaseId === medicalCase.id ? "Assigning..." : "Assign"}
+                        {assigningCaseKey === medicalCase.key ? "Assigning..." : "Assign"}
                       </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        startIcon={<DeleteOutlineIcon />}
-                        sx={{ borderRadius: 999, px: 1.75, textTransform: "none", fontWeight: 600 }}
-                        onClick={() => onRequestDelete(medicalCase)}
-                      >
-                        Delete
-                      </Button>
+                      {medicalCase.source === "course" && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          startIcon={<DeleteOutlineIcon />}
+                          sx={{ borderRadius: 999, px: 1.75, textTransform: "none", fontWeight: 600 }}
+                          onClick={() => onRequestDelete(medicalCase.case)}
+                        >
+                          Delete
+                        </Button>
+                      )}
                     </Stack>
                   </Box>
                 </CardContent>

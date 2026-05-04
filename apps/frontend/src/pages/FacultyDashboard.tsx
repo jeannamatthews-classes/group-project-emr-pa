@@ -24,7 +24,10 @@ import { getDisplayName, getMe, getStoredToken, logout } from "../services/authA
 import { useAuthenticatedAssetUrl } from "../hooks/useAuthenticatedAssetUrl";
 import {
   facultyCreateCase,
+  facultyCreateCaseTemplate,
+  facultyCreateCaseTemplateFromCase,
   facultyCreateCourse,
+  facultyCopyCaseTemplateToCourse,
   facultyDeleteCase,
   facultyDeleteCourse,
   facultyGetCase,
@@ -49,6 +52,8 @@ import {
   type FacultyCaseFormState,
 } from "../components/faculty/facultyDashboardTypes";
 
+const SELECTED_COURSE_STORAGE_KEY = "faculty_selected_course_id";
+
 export default function FacultyDashboard() {
   const navigate = useNavigate();
   const [studentSearch, setStudentSearch] = useState("");
@@ -71,6 +76,8 @@ export default function FacultyDashboard() {
   const [caseForm, setCaseForm] = useState<FacultyCaseFormState>(DEFAULT_FACULTY_CASE_FORM);
   const [pictureFile, setPictureFile] = useState<File | null>(null);
   const [picturePreview, setPicturePreview] = useState<string | null>(null);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [editingCaseTemplateId, setEditingCaseTemplateId] = useState<string | null>(null);
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [savingCourse, setSavingCourse] = useState(false);
   const [deletingCourse, setDeletingCourse] = useState(false);
@@ -105,11 +112,20 @@ export default function FacultyDashboard() {
             facultyListFacultyUsers(token),
             getMe(token),
           ]);
-        const initialCourseId = nextCourses[0]?.id ?? "";
+        const storedCourseId = localStorage.getItem(SELECTED_COURSE_STORAGE_KEY);
+        const initialCourseId =
+          nextCourses.find((course) => course.id === storedCourseId)?.id ??
+          nextCourses[0]?.id ??
+          "";
 
         if (!active) return;
         setCourses(nextCourses);
         setSelectedCourseId(initialCourseId);
+        if (initialCourseId) {
+          localStorage.setItem(SELECTED_COURSE_STORAGE_KEY, initialCourseId);
+        } else {
+          localStorage.removeItem(SELECTED_COURSE_STORAGE_KEY);
+        }
         setAllStudents(nextAllStudents);
         setFacultyUsers(faculty);
         setIsAdmin(me.user.role === "admin");
@@ -191,6 +207,8 @@ export default function FacultyDashboard() {
     setCaseForm(DEFAULT_FACULTY_CASE_FORM);
     setPictureFile(null);
     setPicturePreview(null);
+    setSaveAsTemplate(false);
+    setEditingCaseTemplateId(null);
     setSavingCase(false);
     setDeletingCase(false);
   }
@@ -208,6 +226,15 @@ export default function FacultyDashboard() {
     setStudents(nextStudents);
     setCases(nextCases);
     setCourses(nextCourses);
+  }
+
+  function handleCourseSelect(courseId: string) {
+    setSelectedCourseId(courseId);
+    if (courseId) {
+      localStorage.setItem(SELECTED_COURSE_STORAGE_KEY, courseId);
+    } else {
+      localStorage.removeItem(SELECTED_COURSE_STORAGE_KEY);
+    }
   }
 
   function openCreateDialog() {
@@ -244,6 +271,8 @@ export default function FacultyDashboard() {
       });
       setPictureFile(null);
       setPicturePreview(nextCase.profilePictureUrl ?? null);
+      setSaveAsTemplate(false);
+      setEditingCaseTemplateId(nextCase.templateId ?? null);
       setCaseDialogOpen(true);
     } catch (loadError) {
       setActionError(loadError instanceof Error ? loadError.message : "Failed to load case.");
@@ -254,6 +283,20 @@ export default function FacultyDashboard() {
     const file = event.target.files?.[0] ?? null;
     setPictureFile(file);
     setPicturePreview(file ? URL.createObjectURL(file) : picturePreview);
+  }
+
+  async function createCourseCaseFromForm(token: string) {
+    return facultyCreateCase(token, {
+      name: caseForm.name.trim(),
+      caseTitle: caseForm.chiefComplaint.trim() || caseForm.name.trim(),
+      dob: caseForm.dob || undefined,
+      gender: caseForm.gender,
+      codeStatus: caseForm.codeStatus,
+      location: caseForm.location.trim() || undefined,
+      caseType: caseForm.caseType,
+      hasLabs: caseForm.hasLabs,
+      courseId: selectedCourseId,
+    });
   }
 
   async function handleSaveCase() {
@@ -288,21 +331,35 @@ export default function FacultyDashboard() {
           hasLabs: caseForm.hasLabs,
         });
         if (pictureFile) await facultyUploadCasePicture(token, editingCaseId, pictureFile);
-        setActionMessage(`Updated case for ${caseForm.name.trim()}.`);
+        if (saveAsTemplate && !editingCaseTemplateId) {
+          const { template } = await facultyCreateCaseTemplateFromCase(token, editingCaseId);
+          setEditingCaseTemplateId(template.id);
+          setActionMessage(`Updated case for ${caseForm.name.trim()} and added it to the case bank.`);
+        } else {
+          setActionMessage(`Updated case for ${caseForm.name.trim()}.`);
+        }
       } else {
-        const { case: created } = await facultyCreateCase(token, {
-          name: caseForm.name.trim(),
-          caseTitle: caseForm.chiefComplaint.trim() || caseForm.name.trim(),
-          dob: caseForm.dob || undefined,
-          gender: caseForm.gender,
-          codeStatus: caseForm.codeStatus,
-          location: caseForm.location.trim() || undefined,
-          caseType: caseForm.caseType,
-          hasLabs: caseForm.hasLabs,
-          courseId: selectedCourseId,
-        });
+        const { case: created } = saveAsTemplate
+          ? await facultyCreateCaseTemplate(token, {
+              title: caseForm.chiefComplaint.trim() || caseForm.name.trim(),
+              patientName: caseForm.name.trim(),
+              dob: caseForm.dob || undefined,
+              gender: caseForm.gender,
+              codeStatus: caseForm.codeStatus,
+              location: caseForm.location.trim() || undefined,
+              caseType: caseForm.caseType,
+              hasLabs: caseForm.hasLabs,
+              chiefComplaints: caseForm.chiefComplaint.trim() ? [caseForm.chiefComplaint.trim()] : [],
+            }).then((templateResult) =>
+              facultyCopyCaseTemplateToCourse(token, templateResult.template.id, selectedCourseId)
+            )
+          : await createCourseCaseFromForm(token);
         if (pictureFile) await facultyUploadCasePicture(token, created.id, pictureFile);
-        setActionMessage(`Created case for ${caseForm.name.trim()}.`);
+        setActionMessage(
+          saveAsTemplate
+            ? `Created case for ${caseForm.name.trim()} and saved it to the case bank.`
+            : `Created case for ${caseForm.name.trim()}.`
+        );
       }
 
       await refreshDashboard();
@@ -386,7 +443,7 @@ export default function FacultyDashboard() {
       setCourses(nextCourses);
       setAllStudents(nextAllStudents);
       setFacultyUsers(faculty);
-      setSelectedCourseId(result.course.id);
+      handleCourseSelect(result.course.id);
       setCourseDialogOpen(false);
       setActionMessage(!creatingCourse && selectedCourseId ? "Course roster updated." : `Created ${courseName.trim()}.`);
     } catch (courseError) {
@@ -417,7 +474,7 @@ export default function FacultyDashboard() {
       const nextCourseId = nextCourses[0]?.id ?? "";
 
       setCourses(nextCourses);
-      setSelectedCourseId(nextCourseId);
+      handleCourseSelect(nextCourseId);
       setCourseDialogOpen(false);
       setStudents([]);
       setCases([]);
@@ -466,7 +523,7 @@ export default function FacultyDashboard() {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
               <FormControl size="small" sx={{ minWidth: 260 }}>
                 <InputLabel>Course</InputLabel>
-                <Select label="Course" value={selectedCourseId} onChange={(event) => setSelectedCourseId(String(event.target.value))}>
+                <Select label="Course" value={selectedCourseId} onChange={(event) => handleCourseSelect(String(event.target.value))}>
                   {courses.map((course) => (
                     <MenuItem key={course.id} value={course.id}>
                       {course.code ? `${course.code} - ${course.name}` : course.name}
@@ -513,6 +570,8 @@ export default function FacultyDashboard() {
         deletingCase={deletingCase}
         caseForm={caseForm}
         picturePreview={resolvedPicturePreview}
+        saveAsTemplate={saveAsTemplate}
+        caseAlreadySavedToBank={Boolean(editingCaseTemplateId)}
         onClose={() => {
           setCaseDialogOpen(false);
           resetCaseDialog();
@@ -521,6 +580,7 @@ export default function FacultyDashboard() {
         onDelete={() => void handleDeleteCase()}
         onPictureChange={handlePictureChange}
         onCaseFormChange={setCaseForm}
+        onSaveAsTemplateChange={setSaveAsTemplate}
       />
 
       <Dialog open={courseDialogOpen} onClose={savingCourse || deletingCourse ? undefined : () => setCourseDialogOpen(false)} maxWidth="sm" fullWidth>

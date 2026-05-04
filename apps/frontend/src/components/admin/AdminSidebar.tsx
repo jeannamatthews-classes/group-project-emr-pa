@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { NavLink } from "react-router-dom";
-import { adminNavItems } from "./mockData";
+import { adminNavItems } from "./adminNav";
 
 export default function AdminSidebar() {
   return (

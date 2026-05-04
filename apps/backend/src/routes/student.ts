@@ -44,7 +44,7 @@ function caseLabToStudentPayload(lab: {
 
 router.use(authMiddleware);
 
-// GET /api/student/cases — assigned cases for the logged-in student
+// GET /api/student/cases - assigned cases for the logged-in student
 router.get('/cases', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -84,6 +84,13 @@ router.get('/cases', async (req: Request, res: Response) => {
             hasLabs: true,
             profilePictureUrl: true,
             courseId: true,
+            course: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
           },
         },
         assignedByFaculty: {
@@ -179,7 +186,7 @@ router.get('/cases/:id/labs', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/student/grades — submitted notes with grades/feedback for logged-in student
+// GET /api/student/grades - submitted notes with grades/feedback for logged-in student
 router.get('/grades', async (req: Request, res: Response) => {
   try {
     const studentId = req.userId;
@@ -207,8 +214,23 @@ router.get('/grades', async (req: Request, res: Response) => {
         },
       },
       include: {
+        reviewedByFaculty: {
+          select: { id: true, username: true, firstName: true, lastName: true, email: true },
+        },
         patient: {
-          select: { id: true, caseTitle: true, name: true },
+          select: {
+            id: true,
+            caseTitle: true,
+            name: true,
+            courseId: true,
+            course: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
         },
       },
       orderBy: { submittedAt: 'desc' },

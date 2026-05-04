@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { facultyOrAdminMiddleware } from '../middleware/facultyOrAdmin';
 import {
   buildUploadUrl,
+  copyUploadFileToSubdirectory,
   deleteUploadFileIfExists,
   labUpload,
   type UploadedFileLike,
@@ -36,6 +37,7 @@ function patientToCase(p: {
   profilePictureUrl: string | null;
   facultyCreatorId: string | null;
   courseId?: string | null;
+  templateId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -56,9 +58,55 @@ function patientToCase(p: {
     profilePictureUrl: p.profilePictureUrl,
     facultyCreatorId: p.facultyCreatorId,
     courseId: p.courseId ?? null,
+    templateId: p.templateId ?? null,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
+}
+
+function templateToPayload(template: {
+  id: string;
+  title: string;
+  patientName: string;
+  location: string;
+  dob: Date;
+  gender: string;
+  codeStatus: string;
+  caseType: string;
+  hasLabs: boolean;
+  description: string | null;
+  createdByFacultyId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  chiefComplaints: Array<{ id: string; text: string }>;
+}) {
+  return {
+    id: template.id,
+    title: template.title,
+    patientName: template.patientName,
+    location: template.location,
+    dob: template.dob,
+    gender: template.gender,
+    codeStatus: template.codeStatus,
+    caseType: template.caseType,
+    hasLabs: template.hasLabs,
+    description: template.description,
+    createdByFacultyId: template.createdByFacultyId,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+    chiefComplaints: template.chiefComplaints.map((complaint) => ({
+      id: complaint.id,
+      complaintText: complaint.text,
+    })),
+  };
+}
+
+function stringsFromUnknownArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+        .map((item) => item.trim())
+    : [];
 }
 
 async function getFacultyPatientWhere(
@@ -176,7 +224,15 @@ async function loadPatientForFaculty(
           submittedAt: true,
           feedback: true,
           grade: true,
+          reviewedByFacultyId: true,
+          reviewedAt: true,
+          reviewedByFaculty: {
+            select: { id: true, username: true, firstName: true, lastName: true, email: true },
+          },
         },
+      },
+      caseLabs: {
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       },
     },
   });
@@ -312,6 +368,181 @@ router.post('/courses', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('POST /api/faculty/courses error:', error);
     res.status(500).json({ error: 'Failed to create course' });
+  }
+});
+
+router.get('/case-templates', async (req: Request, res: Response) => {
+  try {
+    const templates = await prisma.caseTemplate.findMany({
+      orderBy: [{ updatedAt: 'desc' }, { title: 'asc' }],
+      include: {
+        chiefComplaints: { orderBy: { id: 'asc' } },
+      },
+    });
+
+    res.json({ templates: templates.map(templateToPayload) });
+  } catch (error) {
+    console.error('GET /api/faculty/case-templates error:', error);
+    res.status(500).json({ error: 'Failed to list case templates' });
+  }
+});
+
+router.post('/case-templates', async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as {
+      title?: unknown;
+      patientName?: unknown;
+      name?: unknown;
+      location?: unknown;
+      dob?: unknown;
+      gender?: unknown;
+      codeStatus?: unknown;
+      caseType?: unknown;
+      hasLabs?: unknown;
+      description?: unknown;
+      chiefComplaints?: unknown;
+      chiefComplaint?: unknown;
+    };
+
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const rawPatientName = typeof body.patientName === 'string' ? body.patientName.trim() : '';
+    const rawName = typeof body.name === 'string' ? body.name.trim() : '';
+    const patientName = rawPatientName || rawName;
+
+    if (!title) {
+      res.status(400).json({ error: 'Template title is required' });
+      return;
+    }
+    if (!patientName) {
+      res.status(400).json({ error: 'Patient name is required' });
+      return;
+    }
+
+    const dob = typeof body.dob === 'string' ? new Date(body.dob) : new Date('2000-01-01');
+    if (Number.isNaN(dob.getTime())) {
+      res.status(400).json({ error: 'dob must be a valid date' });
+      return;
+    }
+
+    const chiefComplaints = stringsFromUnknownArray(body.chiefComplaints);
+    const singleChiefComplaint = typeof body.chiefComplaint === 'string' ? body.chiefComplaint.trim() : '';
+    if (singleChiefComplaint) chiefComplaints.unshift(singleChiefComplaint);
+
+    const template = await prisma.caseTemplate.create({
+      data: {
+        title,
+        patientName,
+        location: typeof body.location === 'string' && body.location.trim() ? body.location.trim() : 'Unknown',
+        dob,
+        gender: typeof body.gender === 'string' && body.gender.trim() ? body.gender.trim() : 'Unknown',
+        codeStatus: typeof body.codeStatus === 'string' && body.codeStatus.trim() ? body.codeStatus.trim() : 'Full Code',
+        caseType: body.caseType === 'sim' ? 'sim' : 'pbl',
+        hasLabs: body.hasLabs === true || body.hasLabs === 'true',
+        description:
+          typeof body.description === 'string' && body.description.trim()
+            ? body.description.trim()
+            : null,
+        createdByFacultyId: req.userId ?? null,
+        chiefComplaints: {
+          create: chiefComplaints.map((text) => ({ text })),
+        },
+      },
+      include: {
+        chiefComplaints: { orderBy: { id: 'asc' } },
+      },
+    });
+
+    res.status(201).json({ template: templateToPayload(template) });
+  } catch (error) {
+    console.error('POST /api/faculty/case-templates error:', error);
+    res.status(500).json({ error: 'Failed to create case template' });
+  }
+});
+
+router.post('/case-templates/:templateId/copy-to-course', async (req: Request, res: Response) => {
+  const copiedLabFileUrls: string[] = [];
+
+  try {
+    const templateId = paramString(req.params.templateId).trim();
+    if (!templateId) {
+      res.status(400).json({ error: 'Invalid template id' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as { courseId?: unknown };
+    const courseId = typeof body.courseId === 'string' ? body.courseId.trim() : '';
+    if (!courseId) {
+      res.status(400).json({ error: 'courseId is required' });
+      return;
+    }
+    if (!(await canManageCourse(courseId, req.userId as string, req.userRole))) {
+      res.status(403).json({ error: 'You do not have access to this course' });
+      return;
+    }
+
+    const template = await prisma.caseTemplate.findUnique({
+      where: { id: templateId },
+      include: {
+        chiefComplaints: { orderBy: { id: 'asc' } },
+        caseLabs: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+      },
+    });
+    if (!template) {
+      res.status(404).json({ error: 'Case template not found' });
+      return;
+    }
+
+    const copiedLabs = template.caseLabs.map((lab) => {
+      const copiedFileUrl = copyUploadFileToSubdirectory(lab.fileUrl, 'labs', lab.originalFilename);
+      copiedLabFileUrls.push(copiedFileUrl);
+
+      return {
+        title: lab.title,
+        category: lab.category,
+        description: lab.description,
+        originalFilename: lab.originalFilename,
+        fileUrl: copiedFileUrl,
+        mimeType: lab.mimeType,
+        isVisibleToStudent: lab.isVisibleToStudent,
+        uploadedByFacultyId: req.userId ?? lab.uploadedByFacultyId,
+      };
+    });
+
+    const patient = await prisma.patient.create({
+      data: {
+        caseTitle: template.title,
+        name: template.patientName,
+        location: template.location,
+        dob: template.dob,
+        gender: template.gender,
+        codeStatus: template.codeStatus,
+        caseType: template.caseType,
+        hasLabs: template.hasLabs || copiedLabs.length > 0,
+        facultyCreatorId: req.userId ?? null,
+        courseId,
+        templateId: template.id,
+        chiefComplaints: {
+          create: template.chiefComplaints.map((complaint) => ({
+            complaintText: complaint.text,
+          })),
+        },
+        ...(copiedLabs.length > 0
+          ? {
+              caseLabs: {
+                create: copiedLabs,
+              },
+            }
+          : {}),
+      },
+    });
+
+    res.status(201).json({ case: patientToCase(patient) });
+  } catch (error) {
+    for (const fileUrl of copiedLabFileUrls) {
+      deleteUploadFileIfExists(fileUrl);
+    }
+    console.error('POST /api/faculty/case-templates/:templateId/copy-to-course error:', error);
+    res.status(500).json({ error: 'Failed to copy case template into course' });
   }
 });
 
@@ -586,6 +817,11 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
               submittedAt: true,
               grade: true,
               feedback: true,
+              reviewedByFacultyId: true,
+              reviewedAt: true,
+              reviewedByFaculty: {
+                select: { id: true, username: true, firstName: true, lastName: true, email: true },
+              },
               createdAt: true,
               updatedAt: true,
             },
@@ -617,6 +853,9 @@ router.get('/students/:studentId/cases', async (req: Request, res: Response) => 
                 submittedAt: note.submittedAt,
                 grade: note.grade,
                 feedback: note.feedback,
+                reviewedByFacultyId: note.reviewedByFacultyId,
+                reviewedAt: note.reviewedAt,
+                reviewedByFaculty: note.reviewedByFaculty,
                 createdAt: note.createdAt,
                 updatedAt: note.updatedAt,
               }
@@ -776,6 +1015,112 @@ router.patch('/cases/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** Copy an existing course-owned case into the reusable case bank. */
+router.post('/cases/:id/case-template', async (req: Request, res: Response) => {
+  const copiedTemplateLabFileUrls: string[] = [];
+
+  try {
+    const caseId = parseCaseId(paramString(req.params.id));
+    if (!caseId) {
+      res.status(400).json({ error: 'Invalid case id' });
+      return;
+    }
+
+    const access = await loadPatientForFaculty(caseId, req.userId!, req.userRole);
+    if ('error' in access) {
+      if (access.error === 'not_found') {
+        res.status(404).json({ error: 'Case not found' });
+        return;
+      }
+      res.status(403).json({ error: 'You do not have access to this case' });
+      return;
+    }
+
+    const patient = access.patient;
+    if (patient.templateId) {
+      const existingTemplate = await prisma.caseTemplate.findUnique({
+        where: { id: patient.templateId },
+        include: { chiefComplaints: { orderBy: { id: 'asc' } } },
+      });
+
+      if (existingTemplate) {
+        res.json({ template: templateToPayload(existingTemplate), alreadySaved: true });
+        return;
+      }
+    }
+
+    const title = patient.caseTitle?.trim() ? patient.caseTitle : patient.name;
+    const chiefComplaintTexts = patient.chiefComplaints
+      .map((complaint) => complaint.complaintText.trim())
+      .filter(Boolean);
+    if (chiefComplaintTexts.length === 0 && patient.caseTitle?.trim()) {
+      chiefComplaintTexts.push(patient.caseTitle.trim());
+    }
+
+    const copiedTemplateLabs = patient.caseLabs.map((lab) => {
+      const copiedFileUrl = copyUploadFileToSubdirectory(lab.fileUrl, 'labs', lab.originalFilename);
+      copiedTemplateLabFileUrls.push(copiedFileUrl);
+
+      return {
+        title: lab.title,
+        category: lab.category,
+        description: lab.description,
+        originalFilename: lab.originalFilename,
+        fileUrl: copiedFileUrl,
+        mimeType: lab.mimeType,
+        isVisibleToStudent: lab.isVisibleToStudent,
+        uploadedByFacultyId: lab.uploadedByFacultyId ?? req.userId ?? null,
+      };
+    });
+
+    const template = await prisma.$transaction(async (tx) => {
+      const createdTemplate = await tx.caseTemplate.create({
+        data: {
+          title,
+          patientName: patient.name,
+          location: patient.location,
+          dob: patient.dob,
+          gender: patient.gender,
+          codeStatus: patient.codeStatus,
+          caseType: patient.caseType,
+          hasLabs: patient.hasLabs || copiedTemplateLabs.length > 0,
+          description: null,
+          createdByFacultyId: req.userId ?? null,
+          chiefComplaints: {
+            create: chiefComplaintTexts.map((text) => ({ text })),
+          },
+          ...(copiedTemplateLabs.length > 0
+            ? {
+                caseLabs: {
+                  create: copiedTemplateLabs,
+                },
+              }
+            : {}),
+        },
+        include: {
+          chiefComplaints: { orderBy: { id: 'asc' } },
+          caseLabs: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        },
+      });
+
+      await tx.patient.update({
+        where: { id: patient.id },
+        data: { templateId: createdTemplate.id },
+      });
+
+      return createdTemplate;
+    });
+
+    res.status(201).json({ template: templateToPayload(template), alreadySaved: false });
+  } catch (error) {
+    for (const fileUrl of copiedTemplateLabFileUrls) {
+      deleteUploadFileIfExists(fileUrl);
+    }
+    console.error('POST /api/faculty/cases/:id/case-template error:', error);
+    res.status(500).json({ error: 'Failed to add case to case bank' });
+  }
+});
+
 /** Notes for a faculty-visible case with student identity. */
 router.get('/cases/:id/notes', async (req: Request, res: Response) => {
   try {
@@ -803,6 +1148,9 @@ router.get('/cases/:id/notes', async (req: Request, res: Response) => {
       orderBy: { updatedAt: 'desc' },
       include: {
         student: { select: { id: true, username: true, firstName: true, lastName: true, email: true } },
+        reviewedByFaculty: {
+          select: { id: true, username: true, firstName: true, lastName: true, email: true },
+        },
       },
     });
 
@@ -830,6 +1178,9 @@ router.get('/cases/:id/notes', async (req: Request, res: Response) => {
         submittedAt: n.submittedAt,
         grade: n.grade,
         feedback: n.feedback,
+        reviewedByFacultyId: n.reviewedByFacultyId,
+        reviewedAt: n.reviewedAt,
+        reviewedByFaculty: n.reviewedByFaculty,
         createdAt: n.createdAt,
         updatedAt: n.updatedAt,
       })),

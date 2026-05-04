@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Alert, Box, CircularProgress, Stack } from "@mui/material";
 
 import { getMe, getStoredToken, logout, openAuthenticatedAsset } from "../../services/authApi";
@@ -25,8 +25,12 @@ import FacultyPageTopBar from "./FacultyPageTopBar";
 import FacultySubmissionTimelineCard from "./FacultySubmissionTimelineCard";
 import { type LabEditFormState } from "./facultySubmissionShared";
 
+const SELECTED_COURSE_STORAGE_KEY = "faculty_selected_course_id";
+
 export default function StudentCasePage() {
   const { caseId, studentId } = useParams<{ caseId: string; studentId: string }>();
+  const [searchParams] = useSearchParams();
+  const courseIdParam = searchParams.get("courseId");
   const navigate = useNavigate();
 
   const [caseDetail, setCaseDetail] = useState<FacultyCaseDetail | null>(null);
@@ -94,6 +98,10 @@ export default function StudentCasePage() {
 
         if (!active) return;
 
+        if (nextCase.courseId) {
+          localStorage.setItem(SELECTED_COURSE_STORAGE_KEY, nextCase.courseId);
+        }
+
         const matchingNote = notes.find((item) => item.studentId === studentId) ?? null;
         const matchingAssignment = nextCase.assignments.find((item) => item.studentId === studentId);
         const matchingDraftSummary =
@@ -146,6 +154,7 @@ export default function StudentCasePage() {
     null;
   const patientName = caseDetail?.patientName ?? caseDetail?.patient ?? "";
   const chiefComplaint = caseDetail?.caseTitle ?? caseDetail?.name ?? "";
+  const backCourseId = caseDetail?.courseId ?? courseIdParam;
 
   async function handleSaveFeedback() {
     if (!note) {
@@ -429,7 +438,9 @@ export default function StudentCasePage() {
         secondaryActionLabel="Back"
         onTitleClick={() => navigate("/faculty")}
         onGoAdmin={() => navigate("/admin/users")}
-        onSecondaryAction={() => navigate(`/student/${studentId}`)}
+        onSecondaryAction={() =>
+          navigate(`/student/${studentId}${backCourseId ? `?courseId=${backCourseId}` : ""}`)
+        }
         onGoSettings={() => navigate("/settings")}
         onLogout={handleLogout}
       />

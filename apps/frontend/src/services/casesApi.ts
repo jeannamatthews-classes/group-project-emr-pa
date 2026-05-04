@@ -2,7 +2,13 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? import.meta.env.VITE_API_BASE_URL.replace('/api/auth', '')
   : 'http://localhost:5001';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+export type FacultyReviewer = {
+  id: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+};
 
 export type AssignedCase = {
   id: number;
@@ -10,6 +16,12 @@ export type AssignedCase = {
   name: string;
   patientName?: string;
   displayTitle?: string;
+  courseId: string | null;
+  course?: {
+    id: string;
+    name: string;
+    code: string | null;
+  } | null;
   location: string;
   dob: string;
   gender: string;
@@ -56,6 +68,9 @@ export type NoteData = {
   submittedAt: string | null;
   grade: number | null;
   feedback: string | null;
+  reviewedByFacultyId: string | null;
+  reviewedAt: string | null;
+  reviewedByFaculty?: FacultyReviewer | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -67,6 +82,12 @@ export type GradeNote = NoteData & {
     name: string;
     patientName?: string;
     displayTitle?: string;
+    courseId?: string | null;
+    course?: {
+      id: string;
+      name: string;
+      code: string | null;
+    } | null;
   };
 };
 
@@ -101,8 +122,6 @@ export type SaveNotePayload = {
   learningIssues?: string | null;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function authHeaders(token: string): Record<string, string> {
   return {
     'Content-Type': 'application/json',
@@ -118,9 +137,6 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return data as T;
 }
 
-// ─── API functions ────────────────────────────────────────────────────────────
-
-/** Feature 2 — Fetch all cases assigned to the logged-in student */
 export async function getStudentCases(token: string): Promise<{ assignments: Assignment[] }> {
   const res = await fetch(`${API_BASE}/api/student/cases`, {
     headers: authHeaders(token),
@@ -141,7 +157,6 @@ export async function getNote(
   return data.note ? ({ note: data.note } as { note: NoteData }) : null;
 }
 
-/** Save (upsert) a note for a case — covers all 13 sections */
 export async function saveNote(
   token: string,
   payload: SaveNotePayload
@@ -154,7 +169,6 @@ export async function saveNote(
   return parseResponse(res);
 }
 
-/** Feature 5 — Submit a note as a final assignment */
 export async function submitNote(
   token: string,
   noteId: string
@@ -166,7 +180,6 @@ export async function submitNote(
   return parseResponse(res);
 }
 
-/** Feature 5 — Fetch submitted notes with grades/feedback */
 export async function getStudentGrades(token: string): Promise<{ notes: GradeNote[] }> {
   const res = await fetch(`${API_BASE}/api/student/grades`, {
     headers: authHeaders(token),
@@ -185,7 +198,6 @@ export async function getStudentCaseLabs(
   return parseResponse(res);
 }
 
-/** Feature 4 — Upload a patient profile picture */
 export async function uploadProfilePicture(
   token: string,
   caseId: number,
@@ -195,7 +207,7 @@ export async function uploadProfilePicture(
   formData.append('picture', file);
   const res = await fetch(`${API_BASE}/api/cases/${caseId}/picture`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` }, // no Content-Type — let browser set multipart boundary
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   return parseResponse(res);
