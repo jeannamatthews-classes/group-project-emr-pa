@@ -179,7 +179,7 @@ code . (to open the project on VS Code, optional but highly recommended)
 npm install
 npm run db:up
 Copy-Item apps/backend/.env.template apps/backend/.env    // for windows users
-Copy-Item apps/backend/.env.template apps/backend/.env   // for mac & linux userscd apps/backend
+cp apps/backend/.env.template apps/backend/.env   // for mac & linux userscd apps/backend
 npx prisma generate
 npm run prisma:migrate
 cd ../..
